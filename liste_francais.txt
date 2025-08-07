@@ -8083,6 +8083,8 @@ encyclopédie
 end
 endettement
 endettés
+endive
+endives
 endolorir
 endommagé
 endommager
@@ -14695,6 +14697,7 @@ niais
 niant
 Nicaragua
 Nice
+niche
 nicher
 nichons
 nickel

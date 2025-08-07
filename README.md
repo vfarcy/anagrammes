@@ -1,129 +1,116 @@
-# Anagrammes
+# Anagrammes : Un Chercheur d'Anagrammes Intelligent
 
-![Python](https://img.shields.io/badge/Python-3.x-blue.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
+## 1. Objectif du Projet
 
-Un projet Python pour trouver des anagrammes et des anagrammes approximatives avec une tolérance configurable.
+Ce projet est un programme en Python capable de trouver des anagrammes pour une expression donnée (un ou plusieurs mots). Il ne se contente pas de trouver des anagrammes parfaits ; il peut également identifier des **solutions approximatives** en ajoutant ou en retirant des lettres, ce qui le rend beaucoup plus flexible et créatif.
 
-## Table des Matières
+Le programme est conçu pour être à la fois performant, grâce à un dictionnaire prétraité, et ergonomique, avec une interface interactive qui guide l'utilisateur.
 
-- [Description](#description)
-- [Fonctionnalités](#fonctionnalités)
-- [Installation](#installation)
-- [Utilisation](#utilisation)
-  - [Exemple d'utilisation](#exemple-dutilisation)
-  - [Visualisation de la progression](#visualisation-de-la-progression)
-- [Limites et Complexité de la Recherche](#limites-et-complexité-de-la-recherche)
-- [Structure du Projet](#structure-du-projet)
-- [Configuration](#configuration)
-- [Contribution](#contribution)
-- [Licence](#licence)
-- [Remerciements](#remerciements)
+## 2. Fonctionnalités
 
-## Description
+- **Anagrammes Multi-mots** : Trouvez des anagrammes composés de plusieurs mots du dictionnaire.
+- **Tolérance aux Imperfections (`diff`)** : Spécifiez un niveau de tolérance pour trouver des solutions qui ne sont pas des anagrammes parfaits. Le programme peut "ignorer" des lettres de l'expression d'origine ou "emprunter" des lettres du dictionnaire.
+- **Dictionnaire Prétraité** : Pour des recherches quasi-instantanées, le programme utilise un dictionnaire pré-calculé où chaque mot est stocké sous une forme "canonique".
+- **Affichage Détaillé** : Les résultats indiquent clairement les lettres non utilisées (`reste`), les lettres ajoutées (`ajouté`) et la différence totale (`diff`) pour comprendre comment la solution a été formée.
+- **Limite de Résultats Intelligente** : Le programme suggère une limite de résultats à afficher en utilisant une **courbe de croissance logistique (sigmoïde)**. Cette limite s'adapte intelligemment à la complexité de l'entrée (plus il y a de lettres, plus la suggestion est élevée), tout en laissant l'utilisateur libre de la modifier.
 
-Ce projet implémente un moteur de recherche d'anagrammes en Python. Il permet de trouver des combinaisons de mots à partir d'une expression donnée, en prenant en compte une tolérance pour les anagrammes approximatives. Le programme normalise les entrées (suppression des accents, mise en minuscules, filtrage des caractères non alphabétiques) pour assurer une comparaison précise.
+## 3. Installation et Utilisation
 
-## Fonctionnalités
+### Installation
 
-- **Normalisation de Texte** : Nettoyage et standardisation des chaînes de caractères pour une comparaison efficace.
-- **Recherche d'Anagrammes Exactes** : Trouve des anagrammes parfaites (tolérance de 0).
-- **Recherche d'Anagrammes Approximatives** : Permet de trouver des anagrammes même si quelques lettres diffèrent, grâce à un paramètre de tolérance.
-- **Gestion de Dictionnaire** : Utilise un dictionnaire de mots pour construire les anagrammes.
-- **Visualisation de la Progression** : Affiche en temps réel l'état de la recherche récursive pour un meilleur débogage et compréhension.
-- **Sauvegarde de la Dernière Expression** : Maintient un historique simple de la dernière expression recherchée.
+Le projet n'a **aucune dépendance externe**. Il suffit d'avoir un interprète Python 3 installé sur votre machine.
 
-## Installation
+1.  Clonez ou téléchargez ce dépôt.
+2.  Assurez-vous que le fichier `dictionnaire_francais.txt` est présent dans le même répertoire.
 
-1.  **Cloner le dépôt** :
-    ```bash
-    git clone https://github.com/votre-utilisateur/Anagrammes.git
-    cd Anagrammes
-    ```
+### Utilisation
 
-2.  **Prérequis** :
-    Assurez-vous d'avoir Python 3.x installé sur votre système.
-
-3.  **Dictionnaire** :
-    Le programme nécessite un fichier dictionnaire. Par défaut, il s'attend à un fichier nommé `dictionnaire.txt` (ou similaire) dans le même répertoire que le script `anagramme.py`. Chaque mot doit être sur une nouvelle ligne.
-
-## Utilisation
-
-Pour exécuter le programme, lancez le script `anagramme.py` depuis votre terminal :
+Pour lancer le programme, exécutez le script `anagramme.py` depuis votre terminal :
 
 ```bash
 python anagramme.py
 ```
 
-Le programme vous invitera à entrer une expression et une tolérance.
+Le programme vous guidera ensuite à travers plusieurs étapes interactives :
 
-### Exemple d'utilisation
+1.  **Saisissez une expression** : Entrez le mot ou la phrase pour lequel vous voulez trouver des anagrammes (ex: `Endive braisée`).
+2.  **Définissez la tolérance** : Entrez un nombre pour la différence maximale autorisée (`diff`).
+    - `0` : Anagrammes parfaits uniquement.
+    - `1` : Solutions avec une lettre de différence (ajoutée ou retirée).
+    - `2` : Deux lettres de différence, etc.
+3.  **Confirmez la limite de résultats** : Le programme vous suggérera une limite de résultats à afficher.
+    - Appuyez sur `Entrée` pour accepter la suggestion.
+    - Ou entrez un autre nombre pour définir votre propre limite.
+
+### Exemple de Session
 
 ```
-Entrez l'expression à analyser : chien
-Entrez la tolérance (0 pour exact) : 0
+Entrez une expression (ex: 'Albert Einstein') : Endive braisée
+Tolérance (différence max de lettres autorisée, 0 pour anagramme parfaite) : 1
+
+Lettres à utiliser (12): aabdeeiinrsv
+Limite de résultats suggérée : 109. Appuyez sur Entrée pour accepter ou entrez une autre valeur : 
+Recherche en cours...
+
+Solutions trouvées :
+
+[ Différence = 1 ]
+-> envie de baiser (ajouté: 'e' | diff: 1)
+-> ... (autres résultats)
 ```
 
-Le programme affichera ensuite les anagrammes trouvées.
+## 4. L'Algorithme Expliqué
 
-### Visualisation de la progression
+L'efficacité du programme repose sur deux piliers : un prétraitement intelligent et un algorithme de recherche récursif optimisé.
 
-La fonction de recherche récursive a été instrumentée pour afficher sa progression. Vous verrez des messages détaillés dans la console, indiquant :
+### Étape 1 : Le Prétraitement du Dictionnaire
 
-- L'état actuel de la récursion (lettres restantes, chemin actuel, tolérance).
-- Les mots candidats qui sont testés.
-- Quand une solution est trouvée.
+Avant la première recherche, le programme exécute une étape unique de prétraitement :
 
-Cela est particulièrement utile pour comprendre comment l'algorithme explore les différentes combinaisons.
+1.  Il lit le `dictionnaire_francais.txt`.
+2.  Pour chaque mot, il crée une **forme canonique** : les lettres du mot, triées par ordre alphabétique (ex: "chien" -> "cehin").
+3.  Il sauvegarde ces données dans un fichier `dictionnaire_calcule.json`. Ce fichier regroupe les mots par leur forme canonique.
 
-## Limites et Complexité de la Recherche
+Ce prétraitement permet de transformer une recherche d'anagrammes (un problème complexe) en une simple recherche par clé dans un dictionnaire.
 
-Il est crucial de comprendre que l'approche récursive actuelle, bien qu'efficace pour des expressions courtes, n'est pas adaptée à la recherche d'anagrammes pour de longues phrases (par exemple, plus de 15-20 lettres), surtout lorsque la tolérance est supérieure à 0.
+### Étape 2 : La Recherche Récursive
 
-### Pourquoi la recherche est-elle si complexe ?
+Lorsque vous lancez une recherche, l'algorithme suit une approche récursive pour construire les anagrammes mot par mot.
 
-1.  **Explosion Combinatoire** : La recherche d'anagrammes est un problème combinatoire. Pour une chaîne de N lettres, le nombre de façons de les arranger et de les diviser en mots est astronomique.
-2.  **Impact de la Tolérance** :
-    -   Avec une **tolérance de 0**, l'algorithme est contraint de n'utiliser que les lettres disponibles. Le nombre de mots candidats à chaque étape est limité.
-    -   Avec une **tolérance de 1 ou plus**, l'algorithme peut envisager des mots qui ne correspondent pas parfaitement. Cela augmente considérablement le "facteur de branchement" de l'arbre de recherche. Chaque branche supplémentaire multiplie le nombre total de chemins à explorer.
+Voici le pseudo-code qui illustre la logique :
 
-### Conséquences
+```
+fonction trouver_anagrammes(expression_actuelle, lettres_disponibles):
 
-Pour une phrase longue comme "L'Origine du monde, Gustave Courbet" (29 lettres après normalisation), même avec une tolérance de 1, le nombre de combinaisons à tester devient si grand que le programme ne pourrait probablement jamais terminer la recherche dans un temps raisonnable.
+  // Condition de base : si l'expression est une solution valide, on l'ajoute
+  si expression_actuelle est une anagramme acceptable:
+    ajouter expression_actuelle aux résultats
 
-Cette approche récursive est donc principalement à but éducatif pour comprendre le fonctionnement de la recherche d'anagrammes, mais ne constitue pas une solution performante pour des problèmes de grande échelle.
+  // Itération : on essaie d'ajouter un nouveau mot
+  pour chaque mot dans le dictionnaire pré-calculé:
 
-## Structure du Projet
+    // Optimisation 1 : Le mot est-il formable avec les lettres restantes ?
+    si les lettres du mot sont contenues dans lettres_disponibles:
 
-- `anagramme.py` : Le script principal contenant toute la logique de recherche d'anagrammes.
-- `dictionnaire.txt` (exemple) : Un fichier texte contenant un mot par ligne, utilisé comme base pour la recherche d'anagrammes.
-- `README.md` : Ce fichier de documentation.
+      // Appel récursif
+      nouvelle_expression = expression_actuelle + " " + mot
+      nouvelles_lettres_disponibles = lettres_disponibles - lettres_du_mot
+      
+      trouver_anagrammes(nouvelle_expression, nouvelles_lettres_disponibles)
 
-## Configuration
-
-Actuellement, les principales configurations se font via les entrées utilisateur (expression et tolérance).
-
-Le chemin du dictionnaire est défini en dur dans le script. Si vous souhaitez utiliser un dictionnaire différent ou le placer ailleurs, vous devrez modifier la ligne correspondante dans `anagramme.py` :
-
-```python
-CHEMIN_DICTIONNAIRE = "dictionnaire.txt"
+    // Optimisation 2 (pour la tolérance) : Le mot est-il formable en "empruntant" des lettres ?
+    si la différence de lettres entre le mot et les lettres_disponibles <= tolérance_restante:
+      
+      // Appel récursif avec la tolérance mise à jour
+      ...
 ```
 
-## Contribution
+Cette approche explore l'arbre des possibilités, en "élaguant" les branches qui ne peuvent mener à aucune solution (grâce aux optimisations), ce qui la rend très performante.
 
-Les contributions sont les bienvenues ! Si vous souhaitez améliorer ce projet, n'hésitez pas à :
+### Étape 3 : La Suggestion de Limite via Sigmoïde
 
-1.  Forker le dépôt.
-2.  Créer une branche pour votre fonctionnalité (`git checkout -b feature/nouvelle-fonctionnalite`).
-3.  Commiter vos changements (`git commit -m 'Ajout d'une nouvelle fonctionnalité'`).
-4.  Pousser vers la branche (`git push origin feature/nouvelle-fonctionnalite`).
-5.  Ouvrir une Pull Request.
+Pour éviter de proposer une limite de résultats fixe (ex: toujours 50), le programme utilise une fonction mathématique (une **courbe logistique** ou **sigmoïde**) pour calculer une suggestion adaptée.
 
-## Licence
+- **Pourquoi une sigmoïde ?** Cette courbe modélise parfaitement le besoin : une croissance lente pour les mots courts, une accélération rapide pour les mots de complexité moyenne (là où les résultats deviennent intéressants), et un plateau pour les mots très longs (car afficher 5000 résultats n'est pas plus utile que d'en afficher 200).
 
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
-
-## Remerciements
-
-- À tous ceux qui ont contribué à l'amélioration de ce code.
-- Aux ressources et communautés Python pour leur soutien.
+Cela rend le programme plus "intelligent" et améliore l'expérience utilisateur sans sacrifier le contrôle, puisque la suggestion peut toujours être modifiée manuellement.

@@ -1,16 +1,14 @@
 import collections
 import unicodedata
 import sys
+import itertools
+import math
 
 from typing import List, Set, Dict, NamedTuple
 
 # --- Fichiers locaux ---
 DICTIONARY_PATH = "liste_francais.txt"  # Chemin du dictionnaire local
 LAST_EXPRESSION_CACHE = "derniere_expression.txt"  # Chemin du cache pour la dernière expression
-
-# --- Constantes de configuration ---
-MAX_SOLUTIONS = 10000  # Limite le nombre total de solutions à trouver pour éviter l'explosion combinatoire
-MAX_RESULTS_TO_DISPLAY = 50  # Limite le nombre de solutions affichées à l'utilisateur
 
 class Candidate(NamedTuple):
     """Structure pour stocker un mot candidat et ses données pré-calculées."""
@@ -23,7 +21,6 @@ def charger_dictionnaire_local(chemin_fichier: str) -> Set[str]:
     try:
         print(f"Chargement du dictionnaire depuis le fichier local ({chemin_fichier})...")
         with open(chemin_fichier, 'r', encoding='utf-8') as f:
-            # On utilise un set pour des recherches rapides et pour éliminer les doublons
             mots = set(f.read().splitlines())
         print(f"Dictionnaire charge avec {len(mots)} mots.")
         return mots
@@ -38,12 +35,22 @@ def charger_dictionnaire_local(chemin_fichier: str) -> Set[str]:
 
 def normaliser(texte: str) -> str:
     """Nettoie et normalise une chaine de caracteres en supprimant les accents."""
-    # Utilise unicodedata pour une decomposition correcte des caracteres accentues
-    # NFD = Normalization Form Decomposed (separe la lettre de son accent)
     texte_decompose = unicodedata.normalize('NFD', texte)
-    # On ne garde que les caracteres qui ne sont pas des marques diacritiques (les accents)
     texte_sans_accent = "".join(c for c in texte_decompose if not unicodedata.combining(c))
     return "".join(c for c in texte_sans_accent if c.isalpha()).lower()
+
+
+def pretraiter_dictionnaire(mots: Set[str]) -> Dict[str, List[str]]:
+    """Prétraite le dictionnaire pour regrouper les mots par leur forme canonique."""
+    print("Prétraitement du dictionnaire pour la recherche optimisée...")
+    canoniques = collections.defaultdict(list)
+    for mot in mots:
+        mot_normalise = normaliser(mot)
+        if len(mot_normalise) >= 2:
+            forme_canonique = "".join(sorted(mot_normalise))
+            canoniques[forme_canonique].append(mot)
+    print(f"{len(canoniques)} formes canoniques uniques trouvées.")
+    return canoniques
 
 
 def charger_derniere_expression() -> str:
@@ -52,7 +59,7 @@ def charger_derniere_expression() -> str:
         with open(LAST_EXPRESSION_CACHE, 'r', encoding='utf-8') as f:
             return f.read().strip()
     except (FileNotFoundError, IOError):
-        return "Mines antipersonnel"
+        return "L'Origine du monde, Gustave Courbet"
 
 
 def sauvegarder_derniere_expression(expr: str):
@@ -64,128 +71,129 @@ def sauvegarder_derniere_expression(expr: str):
         print(f"Impossible de sauvegarder la derniere expression : {e}", file=sys.stderr)
 
 
-def trouver_anagrammes_approximatifs(expression_cible: str, dictionnaire_a_utiliser: Set[str], tolerance_requise: int, verbose: bool = False) -> List[Dict]:
-    """Fonction principale pour orchestrer la recherche d'anagrammes approximatifs."""
-    print(f"\nAnalyse de l'expression avec une tolerance de {tolerance_requise} lettre(s)...")
+def calculer_limite_affichage(nombre_lettres: int) -> int:
+    """
+    Calcule le nombre de résultats à afficher en utilisant une courbe logistique.
+    Cela permet une augmentation fluide de la limite en fonction de la complexité.
+    """
+    L = 200  # Limite maximale de résultats (le plafond de la courbe)
+    k = 0.4  # Pente de la courbe (à quel point la transition est rapide)
+    n0 = 13  # Point central de la croissance (le nombre de lettres où la limite est L/2)
 
+    # Formule de la fonction logistique
+    try:
+        limite = L / (1 + math.exp(-k * (nombre_lettres - n0)))
+    except OverflowError:
+        # Si (nombre_lettres - n0) est très grand et négatif, exp() peut déborder.
+        # Dans ce cas, la limite est effectivement 0, mais nous la plafonnons à notre minimum.
+        limite = 0
+
+    # On arrondit à l'entier le plus proche et on s'assure de retourner au moins une valeur minimale.
+    return max(20, int(round(limite)))
+
+
+# --- NOUVELLE APPROCHE OPTIMISÉE ---
+
+def generer_combinaisons_depuis_canoniques(
+    solution_canonique: List[str],
+    dict_canonique: Dict[str, List[str]]
+) -> List[str]:
+    """Génère toutes les phrases possibles à partir d'une liste de formes canoniques."""
+    listes_de_mots = [dict_canonique[cle] for cle in solution_canonique]
+    combinaisons_de_mots = list(itertools.product(*listes_de_mots))
+    return [" ".join(combo) for combo in combinaisons_de_mots]
+
+
+def recherche_optimisee_recursive(
+    compteur_lettres_restantes: collections.Counter,
+    cles_canoniques: List[str],
+    solutions: List[List[str]],
+    tolerance_restante: int,
+    chemin_actuel: List[str] = [],
+    start_index: int = 0
+):
+    """Nouvelle recherche récursive qui gère la tolérance."""
+    lettres_non_utilisees = sum(compteur_lettres_restantes.values())
+    if lettres_non_utilisees <= tolerance_restante:
+        solutions.append(chemin_actuel)
+
+    for i in range(start_index, len(cles_canoniques)):
+        cle_canonique = cles_canoniques[i]
+        compteur_cle = collections.Counter(cle_canonique)
+
+        lettres_a_emprunter = compteur_cle - compteur_lettres_restantes
+        cout = sum(lettres_a_emprunter.values())
+
+        if cout <= tolerance_restante:
+            nouveau_compteur_restant = compteur_lettres_restantes - compteur_cle
+            nouvelle_tolerance_restante = tolerance_restante - cout
+            
+            recherche_optimisee_recursive(
+                nouveau_compteur_restant,
+                cles_canoniques,
+                solutions,
+                nouvelle_tolerance_restante,
+                chemin_actuel + [cle_canonique],
+                i
+            )
+
+
+def trouver_anagrammes_optimises(
+    expression_cible: str,
+    dict_canonique: Dict[str, List[str]],
+    tolerance_requise: int
+) -> List[Dict]:
+    """Fonction principale qui utilise le dictionnaire prétraité et gère la tolérance."""
+    print(f"\nLancement de la recherche OPTIMISÉE avec une tolérance de {tolerance_requise}...")
     lettres_normalisees_cible = normaliser(expression_cible)
-    if not lettres_normalisees_cible:
-        print("L'expression fournie ne contient aucune lettre.")
-        return []
-
     compteur_lettres_cible = collections.Counter(lettres_normalisees_cible)
-    print(f"Lettres a utiliser : {''.join(sorted(lettres_normalisees_cible))}")
+    print(f"Lettres à utiliser ({len(lettres_normalisees_cible)}): {''.join(sorted(lettres_normalisees_cible))}")
 
-    candidats = []
-    for mot in dictionnaire_a_utiliser:
-        # FILTRE DE QUALITE : On ignore les mots trop courts qui polluent les resultats.
-        if len(mot) < 3:
-            continue
+    cles_canoniques = sorted(list(dict_canonique.keys()), key=len, reverse=True)
+    print(f"{len(cles_canoniques)} formes canoniques candidates pour la recherche.")
 
-        mot_normalise = normaliser(mot)
-        if not mot_normalise:
-            continue
-
-        compteur_mot = collections.Counter(mot_normalise)
-
-        # FILTRE DE VALIDITE : On ne garde que les mots qui peuvent etre formes
-        # avec les lettres de la cible. C'est la verification la plus importante.
-        if any(compteur_mot[char] > compteur_lettres_cible[char] for char in compteur_mot):
-            continue
-
-        # Le mot est un candidat valide, on l'ajoute.
-        candidats.append(Candidate(original=mot, counter=compteur_mot))
-
-    # Le tri par longueur est une heuristique qui peut aider a trouver
-    # des solutions plus rapidement dans certains cas.
-    candidats.sort(key=lambda c: len(c.original), reverse=True)
-
-    print(f"{len(candidats)} mots candidats trouves.")
-    print("Lancement de la recherche approximative...")
-
-    solutions = []  # On s'assure que la liste est bien vide avant de commencer.
-    recherche_recursive_approximative(compteur_lettres_cible, candidats, [], solutions, tolerance_requise, verbose=verbose)
-
-    # Trier les solutions pour un affichage plus propre
-    # On trie par difference, puis par nombre de mots, puis alphabetiquement
-    solutions.sort(key=lambda s: (s['diff'], len(s['mots']), s['solution_str']))
-
-    return solutions
-
-
-def recherche_recursive_approximative(
-        compteur_lettres: collections.Counter,
-        candidats: List[Candidate],
-        chemin_actuel: List[str],
-        solutions: List[Dict],
-        tolerance_actuelle: int,
-        start_index: int = 0,
-        verbose: bool = False
-) -> None:
-    """
-    Fonction recursive qui cherche des combinaisons de mots de maniere exhaustive.
-    """
-    if verbose:
-        indentation = "  " * len(chemin_actuel)
-        print(f"{indentation}RECURSION: Lettres restantes: {''.join(sorted(compteur_lettres.elements()))}, Chemin: {chemin_actuel}, Tolerance: {tolerance_actuelle}")
-        sys.stdout.flush()
-
-    # On a une solution potentielle. On l'enregistre si elle respecte la tolerance.
-    lettres_restantes_compteur = sum(compteur_lettres.values())
-
-    # Condition de sauvegarde de la solution.
-    # Si la tolerance est 0, on cherche une correspondance exacte (reste = 0).
-    # Sinon, on accepte un reste inferieur ou egal a la tolerance.
-    is_solution_valid = (
-        tolerance_actuelle == 0 and lettres_restantes_compteur == 0
-    ) or (
-        tolerance_actuelle > 0 and lettres_restantes_compteur <= tolerance_actuelle
+    solutions_canoniques = []
+    recherche_optimisee_recursive(
+        compteur_lettres_cible,
+        cles_canoniques,
+        solutions_canoniques,
+        tolerance_requise,
+        chemin_actuel=[],
+        start_index=0
     )
 
-    # On ne sauvegarde la solution que si elle contient au moins un mot et est valide.
-    if chemin_actuel and is_solution_valid:
-        reste = ''.join(sorted(compteur_lettres.elements()))
-        solution_str = ' '.join(chemin_actuel)
-        if verbose:
-            print(f"{indentation}  SOLUTION TROUVEE: {solution_str} (reste: '{reste}' | diff: {lettres_restantes_compteur})")
-            sys.stdout.flush()
-        solutions.append({
-            'solution_str': solution_str,
-            'reste': reste,
-            'diff': lettres_restantes_compteur,
-            'mots': chemin_actuel
-        })
+    resultats_finaux = []
+    solutions_uniques = set()
 
-    # Conditions d'arret pour eviter une recherche infinie ou trop profonde
-    if len(solutions) >= MAX_SOLUTIONS or len(chemin_actuel) >= 8:
-        return
+    for sol_canonique in solutions_canoniques:
+        lettres_utilisees = collections.Counter("".join(sol_canonique))
+        
+        diff_counter = (compteur_lettres_cible - lettres_utilisees) + (lettres_utilisees - compteur_lettres_cible)
+        diff = sum(diff_counter.values())
 
-    # Boucle de recherche
-    for i in range(start_index, len(candidats)):
-        candidat = candidats[i]
-        if verbose:
-            print(f"{indentation}  TESTING CANDIDAT: {candidat.original}")
-            sys.stdout.flush()
+        if diff <= tolerance_requise:
+            combinaisons = generer_combinaisons_depuis_canoniques(sol_canonique, dict_canonique)
+            for combo_str in combinaisons:
+                if combo_str not in solutions_uniques:
+                    solutions_uniques.add(combo_str)
+                    reste_reel = compteur_lettres_cible - lettres_utilisees
+                    lettres_ajoutees = lettres_utilisees - compteur_lettres_cible
+                    resultats_finaux.append({
+                        'solution_str': combo_str,
+                        'reste': "".join(sorted(reste_reel.elements())),
+                        'ajoute': "".join(sorted(lettres_ajoutees.elements())),
+                        'diff': diff,
+                        'mots': combo_str.split()
+                    })
 
-        # VERIFICATION : Le candidat peut-il etre forme avec les lettres restantes ?
-        if all(compteur_lettres[char] >= candidat.counter[char] for char in candidat.counter):
-            compteur_restant = compteur_lettres - candidat.counter
-
-            # Le candidat est valide, on continue la recherche avec les lettres restantes.
-            recherche_recursive_approximative(
-                compteur_restant,
-                candidats,
-                chemin_actuel + [candidat.original],
-                solutions,
-                tolerance_actuelle,
-                i + 1,  # On continue avec les mots suivants pour eviter les doublons
-                verbose=verbose
-            )
+    resultats_finaux.sort(key=lambda s: (s['diff'], len(s['mots']), s['solution_str']))
+    return resultats_finaux
 
 
 # --- Point d'entree du programme ---
 if __name__ == "__main__":
     dictionnaire = charger_dictionnaire_local(DICTIONARY_PATH)
+    dictionnaire_canonique = pretraiter_dictionnaire(dictionnaire)
 
     try:
         while True:
@@ -199,8 +207,8 @@ if __name__ == "__main__":
             else:
                 sauvegarder_derniere_expression(expression)
 
-            # Permettre a l'utilisateur de definir la tolerance
-            tolerance = 0
+            # 2. Permettre a l'utilisateur de definir la tolerance
+            tolerance = 1
             try:
                 tolerance_input = input(f"Entrez la tolerance (0 = parfaite, Entrer pour {tolerance}): ")
                 if tolerance_input:
@@ -208,22 +216,61 @@ if __name__ == "__main__":
             except ValueError:
                 print(f"Entree invalide. Utilisation de la tolerance par defaut : {tolerance}")
 
-            # Nouvelle option pour la progression
-            verbose_input = input("Afficher la progression de la recherche (o/N) ? ").lower()
-            afficher_progression = (verbose_input == 'o')
+            # 3. Calculer, proposer et définir la limite d'affichage
+            lettres_pour_calcul = normaliser(expression)
+            limite_suggeree = calculer_limite_affichage(len(lettres_pour_calcul))
+            limite_affichage = limite_suggeree
+            try:
+                limite_input = input(f"Limite de résultats suggérée : {limite_suggeree}. Appuyez sur Entrée pour accepter ou entrez une autre valeur : ")
+                if limite_input:
+                    limite_affichage = int(limite_input)
+            except ValueError:
+                print(f"Entrée invalide. Utilisation de la limite suggérée : {limite_affichage}")
 
-            solutions_trouvees = trouver_anagrammes_approximatifs(expression, dictionnaire, tolerance, verbose=afficher_progression)
 
-            print("\n----------------- RESULTATS APPROXIMATIFS -----------------")
+            solutions_trouvees = trouver_anagrammes_optimises(expression, dictionnaire_canonique, tolerance)
+
+            print("\n----------------- RESULTATS -----------------")
             if solutions_trouvees:
                 total_solutions = len(solutions_trouvees)
-                solutions_a_afficher = solutions_trouvees[:MAX_RESULTS_TO_DISPLAY]
-                print(
-                    f"{total_solutions} solution(s) trouvee(s). Affichage des {len(solutions_a_afficher)} meilleures (max: {MAX_SOLUTIONS}, tolerance: {tolerance}) :\n")
-                for sol in solutions_a_afficher:
-                    print(f"  -> {sol['solution_str']} (reste: '{sol['reste']}' | diff: {sol['diff']})")
+                print(f"{total_solutions} solution(s) trouvee(s) (tolerance: {tolerance}).")
+
+                grouped_solutions = collections.defaultdict(list)
+                for sol in solutions_trouvees:
+                    grouped_solutions[sol['diff']].append(sol)
+                
+                results_shown = 0
+                limit_reached = False
+
+                for diff_val in sorted(grouped_solutions.keys()):
+                    if limit_reached:
+                        break
+                    
+                    solutions_in_group = grouped_solutions[diff_val]
+                    if results_shown < limite_affichage:
+                        print(f"\n--- Solutions avec diff: {diff_val} ---")
+
+                    for sol in solutions_in_group:
+                        if results_shown >= limite_affichage:
+                            limit_reached = True
+                            break
+                        
+                        details = []
+                        if sol['reste']:
+                            details.append(f"reste: '{sol['reste']}'")
+                        if sol['ajoute']:
+                            details.append(f"ajouté: '{sol['ajoute']}'")
+                        details.append(f"diff: {sol['diff']}")
+                        
+                        details_str = " | ".join(details)
+                        print(f"  -> {sol['solution_str']} ({details_str})")
+                        results_shown += 1
+                
+                if limit_reached:
+                    print(f"\nLimite d'affichage de {limite_affichage} résultats atteinte.")
+
             else:
-                print("Aucune anagramme approximative n'a ete trouvee.")
+                print("Aucune anagramme n'a ete trouvee.")
             print("---------------------------------------------------------")
 
     except KeyboardInterrupt:

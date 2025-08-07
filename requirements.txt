@@ -1,4 +1,0 @@
-# Ce fichier est utilisé pour lister les dépendances Python du projet.
-# Vous pouvez les installer en utilisant la commande : pip install -r requirements.txt
-requests
-unidecode
