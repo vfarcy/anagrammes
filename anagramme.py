@@ -17,6 +17,20 @@ class Candidate(NamedTuple):
     original: str
     counter: collections.Counter
 
+def afficher_barre_progression(iteration, total, prefix='', suffix='', decimals=2, length=50, fill='█'):
+    """
+    Affiche une barre de progression dynamique dans le terminal.
+    """
+    if total == 0:
+        total = 1
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filled_length = int(length * iteration // total)
+    bar = fill * filled_length + '-' * (length - filled_length)
+    sys.stdout.write(f'\r{prefix} |{bar}| {percent}% {suffix}')
+    sys.stdout.flush()
+    if iteration == total:
+        sys.stdout.write('\n')
+        sys.stdout.flush()
 
 def charger_dictionnaire_local(chemin_fichier: str) -> Set[str]:
     """Charge le dictionnaire depuis un fichier local (un mot par ligne)."""
@@ -34,23 +48,26 @@ def charger_dictionnaire_local(chemin_fichier: str) -> Set[str]:
         print(f"ERREUR : Impossible de lire le fichier dictionnaire '{chemin_fichier}'. {e}", file=sys.stderr)
         sys.exit(1)
 
-
 def normaliser(texte: str) -> str:
     """Nettoie et normalise une chaîne de caractères en supprimant les accents."""
     texte_decompose = unicodedata.normalize('NFD', texte)
     texte_sans_accent = "".join(c for c in texte_decompose if not unicodedata.combining(c))
     return "".join(c for c in texte_sans_accent if c.isalpha()).lower()
 
-
 def pretraiter_dictionnaire(mots: Set[str]) -> Dict[str, List[str]]:
     """Prétraite le dictionnaire pour regrouper les mots par leur forme canonique."""
-    print("Prétraitement du dictionnaire pour la recherche optimisée...")
     canoniques = collections.defaultdict(list)
-    for mot in mots:
+    total_mots = len(mots)
+    # Initialiser la barre de progression
+    afficher_barre_progression(0, total_mots, prefix='Prétraitement:', suffix='Terminé', length=50)
+    for i, mot in enumerate(mots):
         mot_normalise = normaliser(mot)
         if len(mot_normalise) >= 2:
             forme_canonique = "".join(sorted(mot_normalise))
             canoniques[forme_canonique].append(mot)
+        # Mettre à jour la barre de progression tous les 1000 mots pour la performance
+        if (i + 1) % 1000 == 0 or (i + 1) == total_mots:
+            afficher_barre_progression(i + 1, total_mots, prefix='Prétraitement:', suffix='Terminé', length=50)
     print(f"{len(canoniques)} formes canoniques uniques trouvées.")
     return canoniques
 
@@ -91,7 +108,6 @@ def charger_derniere_expression() -> str:
     except (FileNotFoundError, IOError):
         return "L'Origine du monde, Gustave Courbet"
 
-
 def sauvegarder_derniere_expression(expr: str):
     """Sauvegarde l'expression donnée dans le fichier cache."""
     try:
@@ -99,7 +115,6 @@ def sauvegarder_derniere_expression(expr: str):
             f.write(expr)
     except IOError as e:
         print(f"Impossible de sauvegarder la dernière expression : {e}", file=sys.stderr)
-
 
 def calculer_limite_affichage(nombre_lettres: int) -> int:
     """
@@ -130,21 +145,25 @@ def generer_combinaisons_depuis_canoniques(
     combinaisons_de_mots = list(itertools.product(*listes_de_mots))
     return [" ".join(combo) for combo in combinaisons_de_mots]
 
-
 def recherche_optimisee_recursive(
     compteur_lettres_restantes: collections.Counter,
     cles_canoniques: List[str],
     solutions: List[List[str]],
     tolerance_restante: int,
     chemin_actuel: List[str] = [],
-    start_index: int = 0
+    start_index: int = 0,
+    total_cles_for_progress: int = 0  # Ajout pour la barre de progression
 ):
-    """Nouvelle recherche récursive qui gère la tolérance."""
+    """Nouvelle recherche récursive qui gère la tolérance et la progression."""
     lettres_non_utilisees = sum(compteur_lettres_restantes.values())
     if lettres_non_utilisees <= tolerance_restante:
         solutions.append(chemin_actuel)
 
     for i in range(start_index, len(cles_canoniques)):
+        # Mettre à jour la barre de progression uniquement pour le premier niveau de récursion
+        if not chemin_actuel and total_cles_for_progress > 0:
+            afficher_barre_progression(i + 1, total_cles_for_progress, prefix='Recherche:', suffix='En cours')
+
         cle_canonique = cles_canoniques[i]
         compteur_cle = collections.Counter(cle_canonique)
 
@@ -161,7 +180,8 @@ def recherche_optimisee_recursive(
                 solutions,
                 nouvelle_tolerance_restante,
                 chemin_actuel + [cle_canonique],
-                i
+                i,
+                total_cles_for_progress  # Passer la valeur
             )
 
 
@@ -180,14 +200,20 @@ def trouver_anagrammes_optimises(
     print(f"{len(cles_canoniques)} formes canoniques candidates pour la recherche.")
 
     solutions_canoniques = []
+    total_cles = len(cles_canoniques)
+    afficher_barre_progression(0, total_cles, prefix='Recherche:', suffix='En cours')
+
     recherche_optimisee_recursive(
         compteur_lettres_cible,
         cles_canoniques,
         solutions_canoniques,
         tolerance_requise,
         chemin_actuel=[],
-        start_index=0
+        start_index=0,
+        total_cles_for_progress=total_cles
     )
+    
+    afficher_barre_progression(total_cles, total_cles, prefix='Recherche:', suffix='Terminé')
 
     resultats_finaux = []
     solutions_uniques = set()

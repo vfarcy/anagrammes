@@ -13,6 +13,7 @@ Le programme est conçu pour être à la fois performant, grâce à un dictionna
 - **Dictionnaire Canonique Persistant** : Pour des recherches et des démarrages quasi-instantanés, le programme prétraite le dictionnaire une seule fois et le sauvegarde dans un fichier cache.
 - **Affichage Détaillé** : Les résultats indiquent clairement les lettres non utilisées (`reste`), les lettres ajoutées (`ajouté`) et la différence totale (`diff`).
 - **Limite de Résultats Intelligente** : Le programme suggère une limite de résultats à afficher en utilisant une **courbe de croissance logistique (sigmoïde)**. Cette limite s'adapte intelligemment à la complexité de l'entrée, tout en laissant l'utilisateur libre de la modifier.
+- **Indicateur de Progression** : Une barre de progression visuelle s'affiche lors des recherches longues pour indiquer que le programme travaille activement.
 
 ## 3. Installation et Utilisation
 
@@ -60,7 +61,7 @@ Solutions trouvées :
 
 L'efficacité du programme repose sur deux piliers : un prétraitement intelligent mis en cache et un algorithme de recherche récursif optimisé.
 
-### Étape 1 : Le Prétraitement et la Mise en Cache du Dictionnaire
+### Prétraitement et Mise en Cache du Dictionnaire
 
 L'efficacité du programme repose sur une optimisation cruciale : le prétraitement du dictionnaire est effectué **une seule fois**.
 
@@ -70,7 +71,7 @@ L'efficacité du programme repose sur une optimisation cruciale : le prétraitem
 
 Lors de toutes les exécutions suivantes, le programme charge directement ce cache, ce qui rend le démarrage quasi-instantané. Cette approche transforme une recherche d'anagrammes (un problème complexe) en une simple recherche par clé dans un dictionnaire déjà prêt.
 
-### Étape 2 : La Recherche Récursive
+### Recherche Récursive
 
 Lorsque vous lancez une recherche, l'algorithme suit une approche récursive pour construire les anagrammes mot par mot. Le pseudo-code illustre cette logique :
 
@@ -95,7 +96,14 @@ fonction trouver_anagrammes(expression_actuelle, lettres_disponibles):
 
 Cette approche explore l'arbre des possibilités, en "élaguant" les branches qui ne peuvent mener à aucune solution, ce qui la rend très performante.
 
-### Étape 3 : La Suggestion de Limite via Sigmoïde
+### Indicateur de Progression
+
+Calculer un temps restant fiable pour ce type d'algorithme est quasi impossible en raison de sa nature imprévisible (backtracking avec élagage).
+
+Pour fournir un retour visuel à l'utilisateur, le programme utilise une **heuristique** : la barre de progression suit l'avancement de la boucle principale au premier niveau de la recherche. Bien que sa progression ne soit pas linéaire par rapport au temps, elle confirme que la recherche avance et n'est pas bloquée.
+
+
+### Suggestion de Limite via Sigmoïde
 
 Pour éviter de proposer une limite de résultats fixe, le programme utilise une fonction mathématique (une **courbe logistique** ou **sigmoïde**) pour calculer une suggestion adaptée. Cette courbe modélise parfaitement le besoin : une croissance lente pour les mots courts, une accélération rapide pour les mots de complexité moyenne, et un plateau pour les mots très longs. Cela rend le programme plus "intelligent" et améliore l'expérience utilisateur.
 
@@ -113,6 +121,7 @@ Ce projet peut trouver des anagrammes parfaites et approximatives pour une expre
 *   **Mise en Cache :** Met en cache le dictionnaire prétraité dans un fichier JSON pour un démarrage instantané lors des exécutions ultérieures.
 *   **Limitation Dynamique des Résultats :** Suggère un nombre raisonnable de résultats à afficher en fonction de la complexité de l'expression d'entrée.
 *   **Interface en Ligne de Commande Interactive :** Une interface conviviale pour entrer des expressions et définir les paramètres.
+*   **Indicateur de Progression** : Une barre de progression visuelle s'affiche lors des recherches longues pour indiquer que le programme travaille activement.
 
 #### Comment Fonctionne l'Algorithme de Recherche Optimisée (L'Analogie LEGO)
 
@@ -173,4 +182,3 @@ Quand un assistant (un appel récursif) a fini d'explorer toutes les possibilit�
 Le supérieur continue alors sa propre boucle `for`, en essayant la **pièce suivante** dans le catalogue. C'est le **backtracking** en action : en ne passant pas l'état modifié mais en reprenant simplement la boucle, on "annule" implicitement le choix précédent pour en explorer un autre.
 
 Ce processus se poursuit jusqu'à ce que l'ingénieur initial ait exploré toutes les branches de possibilités qu'il pouvait initier. Le résultat final est la liste complète de tous les plans de montage valides qu'il a pu trouver.
-
