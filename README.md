@@ -56,7 +56,7 @@ Solutions trouvées :
 -> ... (autres résultats)
 ```
 
-## 4. L'Algorithme Expliqué
+## 4. L'Algorithme Expliqué - principes généraux
 
 L'efficacité du programme repose sur deux piliers : un prétraitement intelligent mis en cache et un algorithme de recherche récursif optimisé.
 
@@ -100,11 +100,11 @@ Cette approche explore l'arbre des possibilités, en "élaguant" les branches qu
 Pour éviter de proposer une limite de résultats fixe, le programme utilise une fonction mathématique (une **courbe logistique** ou **sigmoïde**) pour calculer une suggestion adaptée. Cette courbe modélise parfaitement le besoin : une croissance lente pour les mots courts, une accélération rapide pour les mots de complexité moyenne, et un plateau pour les mots très longs. Cela rend le programme plus "intelligent" et améliore l'expérience utilisateur.
 
 
-## 5. Explication de l'algo. Analogie pour un étudiant en informatique
+## 5. Explication détaillée de l'algo
 
 ### Chercheur d'Anagrammes
 
-Ce projet est un chercheur d'anagrammes sophistiqué écrit en Python. Il peut trouver des anagrammes parfaites et approximatives pour une expression donnée en français.
+Ce projet peut trouver des anagrammes parfaites et approximatives pour une expression donnée en français.
 
 #### Fonctionnalités
 
