@@ -3,12 +3,14 @@ import unicodedata
 import sys
 import itertools
 import math
+import json
 
 from typing import List, Set, Dict, NamedTuple
 
 # --- Fichiers locaux ---
 DICTIONARY_PATH = "liste_francais.txt"  # Chemin du dictionnaire local
 LAST_EXPRESSION_CACHE = "derniere_expression.txt"  # Chemin du cache pour la dernière expression
+CANONICAL_DICT_CACHE_PATH = "dictionnaire_canonique.json" # Cache pour le dictionnaire prétraité
 
 class Candidate(NamedTuple):
     """Structure pour stocker un mot candidat et ses données pré-calculées."""
@@ -19,14 +21,14 @@ class Candidate(NamedTuple):
 def charger_dictionnaire_local(chemin_fichier: str) -> Set[str]:
     """Charge le dictionnaire depuis un fichier local (un mot par ligne)."""
     try:
-        print(f"Chargement du dictionnaire depuis le fichier local ({chemin_fichier})...")
+        print(f"Chargement du dictionnaire brut depuis le fichier ({chemin_fichier})...")
         with open(chemin_fichier, 'r', encoding='utf-8') as f:
             mots = set(f.read().splitlines())
-        print(f"Dictionnaire charge avec {len(mots)} mots.")
+        print(f"Dictionnaire brut chargé avec {len(mots)} mots.")
         return mots
     except FileNotFoundError:
         print(f"ERREUR : Le fichier dictionnaire '{chemin_fichier}' est introuvable.", file=sys.stderr)
-        print("Veuillez vous assurer que le fichier se trouve dans le meme repertoire que le programme.", file=sys.stderr)
+        print("Veuillez vous assurer que le fichier se trouve dans le même répertoire que le programme.", file=sys.stderr)
         sys.exit(1)
     except IOError as e:
         print(f"ERREUR : Impossible de lire le fichier dictionnaire '{chemin_fichier}'. {e}", file=sys.stderr)
@@ -34,7 +36,7 @@ def charger_dictionnaire_local(chemin_fichier: str) -> Set[str]:
 
 
 def normaliser(texte: str) -> str:
-    """Nettoie et normalise une chaine de caracteres en supprimant les accents."""
+    """Nettoie et normalise une chaîne de caractères en supprimant les accents."""
     texte_decompose = unicodedata.normalize('NFD', texte)
     texte_sans_accent = "".join(c for c in texte_decompose if not unicodedata.combining(c))
     return "".join(c for c in texte_sans_accent if c.isalpha()).lower()
@@ -52,9 +54,37 @@ def pretraiter_dictionnaire(mots: Set[str]) -> Dict[str, List[str]]:
     print(f"{len(canoniques)} formes canoniques uniques trouvées.")
     return canoniques
 
+def charger_et_pretraiter_dictionnaire(brut_path: str, cache_path: str) -> Dict[str, List[str]]:
+    """
+    Charge le dictionnaire canonique depuis un cache JSON s'il existe.
+    Sinon, le génère à partir du dictionnaire brut et le sauvegarde pour les utilisations futures.
+    """
+    try:
+        print(f"Tentative de chargement du dictionnaire canonique depuis '{cache_path}'...")
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            dict_canonique = json.load(f)
+        if not dict_canonique:
+            raise FileNotFoundError("Cache vide.")
+        print(f"Dictionnaire canonique chargé depuis le cache ({len(dict_canonique)} formes).")
+        return dict_canonique
+    except (FileNotFoundError, json.JSONDecodeError, TypeError) as e:
+        print(f"Cache du dictionnaire non trouvé ou invalide ({e}). Génération en cours...")
+        
+        mots = charger_dictionnaire_local(brut_path)
+        dict_canonique = pretraiter_dictionnaire(mots)
+        
+        try:
+            print(f"Sauvegarde du nouveau dictionnaire canonique dans '{cache_path}'...")
+            with open(cache_path, 'w', encoding='utf-8') as f:
+                json.dump(dict_canonique, f, ensure_ascii=False)
+            print("Sauvegarde terminée.")
+        except IOError as err:
+            print(f"AVERTISSEMENT : Impossible de sauvegarder le cache du dictionnaire : {err}", file=sys.stderr)
+            
+        return dict_canonique
 
 def charger_derniere_expression() -> str:
-    """Charge la derniere expression depuis le cache, ou retourne une valeur par defaut."""
+    """Charge la dernière expression depuis le cache, ou retourne une valeur par défaut."""
     try:
         with open(LAST_EXPRESSION_CACHE, 'r', encoding='utf-8') as f:
             return f.read().strip()
@@ -63,12 +93,12 @@ def charger_derniere_expression() -> str:
 
 
 def sauvegarder_derniere_expression(expr: str):
-    """Sauvegarde l'expression donnee dans le fichier cache."""
+    """Sauvegarde l'expression donnée dans le fichier cache."""
     try:
         with open(LAST_EXPRESSION_CACHE, 'w', encoding='utf-8') as f:
             f.write(expr)
     except IOError as e:
-        print(f"Impossible de sauvegarder la derniere expression : {e}", file=sys.stderr)
+        print(f"Impossible de sauvegarder la dernière expression : {e}", file=sys.stderr)
 
 
 def calculer_limite_affichage(nombre_lettres: int) -> int:
@@ -84,11 +114,8 @@ def calculer_limite_affichage(nombre_lettres: int) -> int:
     try:
         limite = L / (1 + math.exp(-k * (nombre_lettres - n0)))
     except OverflowError:
-        # Si (nombre_lettres - n0) est très grand et négatif, exp() peut déborder.
-        # Dans ce cas, la limite est effectivement 0, mais nous la plafonnons à notre minimum.
         limite = 0
 
-    # On arrondit à l'entier le plus proche et on s'assure de retourner au moins une valeur minimale.
     return max(20, int(round(limite)))
 
 
@@ -192,8 +219,7 @@ def trouver_anagrammes_optimises(
 
 # --- Point d'entree du programme ---
 if __name__ == "__main__":
-    dictionnaire = charger_dictionnaire_local(DICTIONARY_PATH)
-    dictionnaire_canonique = pretraiter_dictionnaire(dictionnaire)
+    dictionnaire_canonique = charger_et_pretraiter_dictionnaire(DICTIONARY_PATH, CANONICAL_DICT_CACHE_PATH)
 
     try:
         while True:
