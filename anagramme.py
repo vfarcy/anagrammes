@@ -5,6 +5,7 @@ import sys
 import unicodedata
 from collections import Counter
 import os
+import itertools
 
 # --- Constantes ---
 DICTIONARY_PATH = "dictionnaire.txt"
@@ -80,88 +81,100 @@ def charger_dictionnaire_trie(chemin_dict_brut, chemin_cache):
     return trie_racine
 
 
-# --- Algorithme de Recherche d'Anagrammes (Avec Barre de Progression Corrigée) ---
-def trouver_anagrammes_trie(expression, tolerance, trie_racine):
-    """Fonction principale pour trouver des anagrammes en utilisant le Trie."""
+# --- Algorithme de Recherche d'Anagrammes (Tolérance Symétrique) ---
 
-    expression_normalisee = normaliser_chaine(expression)
-    lettres_canoniques = sorted(c for c in expression_normalisee if 'a' <= c <= 'z')
+def _chercher_mots_dans_trie(node, compteur):
+    """Utilitaire qui parcourt le trie et retourne tous les mots faisables à partir d'un compteur."""
+    resultats = []
+    if node.mots:
+        for mot in node.mots:
+            resultats.append((mot, compteur.copy()))
+    for char, enfant_node in node.enfants.items():
+        if compteur[char] > 0:
+            compteur[char] -= 1
+            resultats.extend(_chercher_mots_dans_trie(enfant_node, compteur))
+            compteur[char] += 1  # Backtrack
+    return resultats
 
-    compteur_lettres_initial = Counter(lettres_canoniques)
-    solutions_finales = set()
+
+def _recherche_anagrammes_interne(compteur_lettres, tolerance_moins, trie_racine):
+    """
+    Le cœur de l'algorithme de recherche pour un compteur et une tolérance "en moins" donnés.
+    """
+    solutions_locales = set()
 
     def recherche_recursive(compteur_actuel, chemin_actuel):
-        """Fonction récursive qui cherche le mot SUIVANT dans l'anagramme."""
         mots_possibles = _chercher_mots_dans_trie(trie_racine, compteur_actuel)
-
         for mot, compteur_apres_mot in mots_possibles:
             if chemin_actuel and mot < chemin_actuel[-1]:
                 continue
-
             nouveau_chemin = chemin_actuel + [mot]
             solution_triee = tuple(sorted(nouveau_chemin))
-
             lettres_restantes = sum(compteur_apres_mot.values())
-
-            if lettres_restantes <= tolerance:
-                solutions_finales.add(solution_triee)
-
+            if lettres_restantes <= tolerance_moins:
+                solutions_locales.add(solution_triee)
             if lettres_restantes > 1:
                 recherche_recursive(compteur_apres_mot, nouveau_chemin)
 
-    def _chercher_mots_dans_trie(node, compteur):
-        """Utilitaire qui parcourt le trie et retourne tous les mots faisables."""
-        resultats = []
+    recherche_recursive(compteur_lettres, [])
+    return solutions_locales
 
-        if node.mots:
-            for mot in node.mots:
-                resultats.append((mot, compteur.copy()))
 
-        for char, enfant_node in node.enfants.items():
-            if compteur[char] > 0:
-                compteur[char] -= 1
-                resultats.extend(_chercher_mots_dans_trie(enfant_node, compteur))
-                compteur[char] += 1  # Backtrack
-        return resultats
+def trouver_anagrammes_trie(expression, tolerance, trie_racine):
+    """
+    Fonction principale qui orchestre la recherche avec tolérance symétrique.
+    """
+    expression_normalisee = normaliser_chaine(expression)
+    lettres_canoniques = sorted(c for c in expression_normalisee if 'a' <= c <= 'z')
+    compteur_lettres_initial = Counter(lettres_canoniques)
 
-    print(f"\nLancement de la recherche (Trie) avec une tolérance de {tolerance}...")
-    print(f"Lettres à utiliser ({len(lettres_canoniques)}): {''.join(lettres_canoniques)}")
+    solutions_globales = set()
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
 
-    # --- Logique de la Barre de Progression (Corrigée) ---
-    mots_de_premier_niveau = _chercher_mots_dans_trie(trie_racine, compteur_lettres_initial.copy())
-    total_taches = len(mots_de_premier_niveau)
+    # --- Calcul du nombre total de tâches pour la barre de progression ---
+    total_taches = 0
+    for k_plus in range(tolerance + 1):
+        total_taches += math.comb(len(alphabet) + k_plus - 1, k_plus)
+
+    taches_faites = 0
+    print(f"\nLancement de la recherche (Tolérance symétrique de {tolerance})...")
     afficher_barre_progression(0, total_taches, prefixe='Recherche:', suffixe='En cours', longueur=40)
 
-    for i, (mot, compteur_apres_mot) in enumerate(mots_de_premier_niveau):
-        chemin_initial = [mot]
-        solution_triee = tuple(sorted(chemin_initial))
+    # --- Boucle principale pour la tolérance symétrique ---
+    for k_plus in range(tolerance + 1):
+        tolerance_moins = tolerance - k_plus
 
-        lettres_restantes = sum(compteur_apres_mot.values())
+        # Itère sur toutes les combinaisons de 'k_plus' lettres à ajouter
+        for combo in itertools.combinations_with_replacement(alphabet, k_plus):
+            compteur_modifie = compteur_lettres_initial.copy()
+            for char_to_add in combo:
+                compteur_modifie[char_to_add] += 1
 
-        if lettres_restantes <= tolerance:
-            solutions_finales.add(solution_triee)
+            # Lance la recherche pour cette configuration
+            solutions_trouvees = _recherche_anagrammes_interne(compteur_modifie, tolerance_moins, trie_racine)
+            solutions_globales.update(solutions_trouvees)
 
-        if lettres_restantes > 1:
-            recherche_recursive(compteur_apres_mot, chemin_initial)
+            taches_faites += 1
+            afficher_barre_progression(taches_faites, total_taches, prefixe='Recherche:', suffixe='En cours',
+                                       longueur=40)
 
-        afficher_barre_progression(i + 1, total_taches, prefixe='Recherche:', suffixe='En cours', longueur=40)
-
-    if total_taches > 0:
-        print()  # Saut de ligne final après la barre de progression
+    if total_taches > 0: print()
 
     # --- Formatage final des résultats ---
     resultats_formates = []
-    for sol in solutions_finales:
+    for sol in solutions_globales:
         lettres_sol_normalisees = normaliser_chaine("".join(sol))
-        lettres_sol = Counter(lettres_sol_normalisees)
-        diff_compteur = compteur_lettres_initial - lettres_sol
-        nb_diff = sum(diff_compteur.values())
-        diff_str = "".join(sorted(diff_compteur.elements()))
+        compteur_sol = Counter(lettres_sol_normalisees)
+
+        lettres_en_moins = compteur_lettres_initial - compteur_sol
+        lettres_en_plus = compteur_sol - compteur_lettres_initial
 
         resultats_formates.append({
             'solution': list(sol),
-            'nb_diff': nb_diff,
-            'diff_str': diff_str,
+            'nb_moins': sum(lettres_en_moins.values()),
+            'str_moins': "".join(sorted(lettres_en_moins.elements())),
+            'nb_plus': sum(lettres_en_plus.values()),
+            'str_plus': "".join(sorted(lettres_en_plus.elements())),
             'longueur': len(lettres_sol_normalisees)
         })
 
@@ -170,7 +183,7 @@ def trouver_anagrammes_trie(expression, tolerance, trie_racine):
 
 # --- Fonctions Utilitaires ---
 def calculer_limite_affichage(nombre_lettres):
-    """Calcule le nombre de résultats à afficher en utilisant une courbe logistique."""
+    """Calcule le nombre de résultats à afficher."""
     L = 200;
     k = 0.4;
     n0 = 13
@@ -179,12 +192,11 @@ def calculer_limite_affichage(nombre_lettres):
 
 
 def afficher_barre_progression(iteration, total, prefixe='', suffixe='', longueur=50):
-    """Affiche une barre de progression dans le terminal (sans saut de ligne)."""
+    """Affiche une barre de progression dans le terminal."""
     if total == 0: total = 1
     pourcentage = (iteration / float(total)) * 100
     nb_barres_pleines = int(longueur * iteration // total)
     barre = '█' * nb_barres_pleines + '-' * (longueur - nb_barres_pleines)
-    # L'espace à la fin est pour écraser les restes des suffixes précédents
     sys.stdout.write(f'\r{prefixe} |{barre}| {pourcentage:.2f}% {suffixe} ')
     sys.stdout.flush()
 
@@ -196,8 +208,7 @@ if __name__ == "__main__":
     while True:
         print("\n" + "=" * 50)
         expression_entree = input("Entrez une expression (ou 'q' pour quitter): ")
-        if expression_entree.lower() == 'q':
-            break
+        if expression_entree.lower() == 'q': break
 
         lettres_utiles = [c for c in normaliser_chaine(expression_entree) if 'a' <= c <= 'z']
         if not lettres_utiles:
@@ -205,8 +216,9 @@ if __name__ == "__main__":
             continue
 
         try:
-            tolerance_suggeree = 1 if len(lettres_utiles) > 10 else 0
-            tolerance = int(input(f"Entrez la tolérance (suggéré: {tolerance_suggeree}): ") or tolerance_suggeree)
+            tolerance_suggeree = 1 if len(lettres_utiles) > 8 else 0
+            tolerance = int(
+                input(f"Entrez la tolérance (symétrique, suggéré: {tolerance_suggeree}): ") or tolerance_suggeree)
         except ValueError:
             tolerance = tolerance_suggeree
             print(f"Entrée invalide. Utilisation de la tolérance par défaut: {tolerance}")
@@ -220,13 +232,12 @@ if __name__ == "__main__":
 
         resultats_anagrammes = trouver_anagrammes_trie(expression_entree, tolerance, dictionnaire_trie)
 
-        # Trier les résultats par différence croissante
-        resultats_anagrammes.sort(key=lambda x: x['nb_diff'])
+        # Trier les résultats par différence totale croissante
+        resultats_anagrammes.sort(key=lambda x: x['nb_moins'] + x['nb_plus'])
 
         print("\n" + "-" * 17 + " RÉSULTATS " + "-" * 17)
         if resultats_anagrammes:
             for i, anag_info in enumerate(resultats_anagrammes):
-
                 if i >= limite_affichage:
                     print(f"\n... et {len(resultats_anagrammes) - limite_affichage} autre(s) résultat(s).")
                     break
@@ -234,12 +245,18 @@ if __name__ == "__main__":
                 solution_str = " ".join(anag_info['solution'])
                 longueur_str = f"{anag_info['longueur']} lettres"
 
-                if anag_info['nb_diff'] == 0:
+                # Construction de la chaîne de différence
+                diff_parts = []
+                if anag_info['nb_plus'] > 0:
+                    diff_parts.append(f"+{anag_info['nb_plus']} ({anag_info['str_plus']})")
+                if anag_info['nb_moins'] > 0:
+                    diff_parts.append(f"-{anag_info['nb_moins']} ({anag_info['str_moins']})")
+
+                if not diff_parts:
                     print(f"{solution_str} ({longueur_str}, anagramme parfaite)")
                 else:
-                    diff_str = f"différence: {anag_info['diff_str']}, {anag_info['nb_diff']} lettre(s) en moins"
-                    print(f"{solution_str} ({longueur_str}, {diff_str})")
+                    diff_str = ", ".join(diff_parts)
+                    print(f"{solution_str} ({longueur_str}, diff: {diff_str})")
         else:
             print("Aucune anagramme n'a été trouvée.")
         print("-" * (45))
-
