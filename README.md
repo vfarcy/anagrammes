@@ -21,7 +21,7 @@ Le programme est conçu pour être à la fois performant, grâce à un dictionna
 Le projet n'a **aucune dépendance externe**. Il suffit d'avoir un interprète Python 3 installé sur votre machine.
 
 1.  Clonez ou téléchargez ce dépôt.
-2.  Assurez-vous que le fichier `dictionnaire_francais.txt` est présent dans le même répertoire.
+2.  Assurez-vous que le fichier `liste_francais.txt` est présent dans le même répertoire.
 
 ### Utilisation
 
@@ -67,9 +67,8 @@ L'efficacité du programme repose sur deux piliers : un prétraitement intellige
 
 Avant la première recherche, le programme exécute une étape unique de prétraitement :
 
-1.  Il lit le `dictionnaire_francais.txt`.
+1.  Il lit le `liste_francais.txt`.
 2.  Pour chaque mot, il crée une **forme canonique** : les lettres du mot, triées par ordre alphabétique (ex: "chien" -> "cehin").
-3.  Il sauvegarde ces données dans un fichier `dictionnaire_calcule.json`. Ce fichier regroupe les mots par leur forme canonique.
 
 Ce prétraitement permet de transformer une recherche d'anagrammes (un problème complexe) en une simple recherche par clé dans un dictionnaire.
 
