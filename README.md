@@ -13,6 +13,7 @@ Un projet Python pour trouver des anagrammes et des anagrammes approximatives av
 - [Utilisation](#utilisation)
   - [Exemple d'utilisation](#exemple-dutilisation)
   - [Visualisation de la progression](#visualisation-de-la-progression)
+- [Limites et Complexité de la Recherche](#limites-et-complexité-de-la-recherche)
 - [Structure du Projet](#structure-du-projet)
 - [Configuration](#configuration)
 - [Contribution](#contribution)
@@ -74,6 +75,23 @@ La fonction de recherche récursive a été instrumentée pour afficher sa progr
 - Quand une solution est trouvée.
 
 Cela est particulièrement utile pour comprendre comment l'algorithme explore les différentes combinaisons.
+
+## Limites et Complexité de la Recherche
+
+Il est crucial de comprendre que l'approche récursive actuelle, bien qu'efficace pour des expressions courtes, n'est pas adaptée à la recherche d'anagrammes pour de longues phrases (par exemple, plus de 15-20 lettres), surtout lorsque la tolérance est supérieure à 0.
+
+### Pourquoi la recherche est-elle si complexe ?
+
+1.  **Explosion Combinatoire** : La recherche d'anagrammes est un problème combinatoire. Pour une chaîne de N lettres, le nombre de façons de les arranger et de les diviser en mots est astronomique.
+2.  **Impact de la Tolérance** :
+    -   Avec une **tolérance de 0**, l'algorithme est contraint de n'utiliser que les lettres disponibles. Le nombre de mots candidats à chaque étape est limité.
+    -   Avec une **tolérance de 1 ou plus**, l'algorithme peut envisager des mots qui ne correspondent pas parfaitement. Cela augmente considérablement le "facteur de branchement" de l'arbre de recherche. Chaque branche supplémentaire multiplie le nombre total de chemins à explorer.
+
+### Conséquences
+
+Pour une phrase longue comme "L'Origine du monde, Gustave Courbet" (29 lettres après normalisation), même avec une tolérance de 1, le nombre de combinaisons à tester devient si grand que le programme ne pourrait probablement jamais terminer la recherche dans un temps raisonnable.
+
+Cette approche récursive est donc principalement à but éducatif pour comprendre le fonctionnement de la recherche d'anagrammes, mais ne constitue pas une solution performante pour des problèmes de grande échelle.
 
 ## Structure du Projet
 
