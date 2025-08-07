@@ -98,3 +98,78 @@ Cette approche explore l'arbre des possibilités, en "élaguant" les branches qu
 ### Étape 3 : La Suggestion de Limite via Sigmoïde
 
 Pour éviter de proposer une limite de résultats fixe, le programme utilise une fonction mathématique (une **courbe logistique** ou **sigmoïde**) pour calculer une suggestion adaptée. Cette courbe modélise parfaitement le besoin : une croissance lente pour les mots courts, une accélération rapide pour les mots de complexité moyenne, et un plateau pour les mots très longs. Cela rend le programme plus "intelligent" et améliore l'expérience utilisateur.
+
+
+## Explication de l'algo. Analogie pour un étudiant en informatique
+
+### Chercheur d'Anagrammes
+
+Ce projet est un chercheur d'anagrammes sophistiqué écrit en Python. Il peut trouver des anagrammes parfaites et approximatives pour une expression donnée en français.
+
+#### Fonctionnalités
+
+*   **Anagrammes Parfaites et Approximatives :** Trouve des solutions qui utilisent toutes les lettres, ou des solutions qui ont un certain nombre de lettres en trop ou en moins (tolérance).
+*   **Recherche Optimisée :** Utilise un dictionnaire "canonique" prétraité pour accélérer considérablement la recherche.
+*   **Mise en Cache :** Met en cache le dictionnaire prétraité dans un fichier JSON pour un démarrage instantané lors des exécutions ultérieures.
+*   **Limitation Dynamique des Résultats :** Suggère un nombre raisonnable de résultats à afficher en fonction de la complexité de l'expression d'entrée.
+*   **Interface en Ligne de Commande Interactive :** Une interface conviviale pour entrer des expressions et définir les paramètres.
+
+#### Comment Fonctionne l'Algorithme de Recherche Optimisée (L'Analogie LEGO)
+
+Le cœur du programme est la fonction `recherche_optimisee_recursive`. Pour comprendre son fonctionnement, imaginez qu'il s'agit d'un ingénieur chargé d'un projet de construction LEGO complexe.
+
+##### 1. Le Cahier des Charges (Les Paramètres Initiaux)
+
+L'ingénieur reçoit un cahier des charges précis pour démarrer sa mission. C'est l'appel initial à la fonction :
+
+*   **La Boîte de LEGO (`compteur_lettres_cible`) :** C'est un `Counter` (un inventaire précis) de toutes les briques (lettres) disponibles pour le projet. C'est l'état initial de nos ressources.
+*   **Le Catalogue de Pièces (`cles_canoniques`) :** C'est la liste de toutes les "pièces assemblées" autorisées (mots sous leur forme canonique, ex: `deimno` pour "monde"). Pour optimiser, ce catalogue est trié des pièces les plus grandes aux plus petites.
+*   **La Marge d'Erreur (`tolerance_requise`) :** Le client final accepte que la construction finale n'utilise pas toutes les briques, ou même qu'elle en emprunte quelques-unes qui n'étaient pas dans la boîte de départ. C'est notre budget d'imperfection.
+*   **Le Plan de Montage (`solutions_canoniques`) :** C'est une feuille blanche au début, sur laquelle l'ingénieur notera chaque plan de montage final qui respecte le cahier des charges.
+
+##### 2. Le Processus de l'Ingénieur (Une Itération de la Fonction Récursive)
+
+L'ingénieur (la fonction) a un processus de travail systématique. À chaque étape, il se pose les questions suivantes :
+
+**Étape A : Le Cas de Base (Validation de la solution actuelle)**
+
+> "Est-ce que l'assemblage que j'ai sur ma table (`chemin_actuel`) est déjà une solution valide ?"
+
+Le code vérifie : `if sum(compteur_lettres_restantes.values()) <= tolerance_restante:`.
+*   **Traduction :** "Le nombre de briques non utilisées dans ma boîte est-il inférieur ou égal à ma marge d'erreur restante ?" Si oui, c'est une solution acceptable ! L'ingénieur prend une photo du plan (`chemin_actuel`) et l'ajoute à son carnet de solutions (`solutions.append(chemin_actuel)`).
+*   **Note :** Il ne s'arrête pas là. Une solution peut être un sous-ensemble d'une solution encore meilleure.
+
+**Étape B : L'Exploration (La Boucle `for` et le Backtracking)**
+
+> "Maintenant, quelle nouvelle pièce du catalogue puis-je ajouter à mon assemblage actuel ?"
+
+C'est la boucle `for i in range(start_index, len(cles_canoniques)):`.
+
+1.  **Il prend une pièce du catalogue** (`cle_canonique`).
+2.  **Il évalue le coût :**
+    *   Il compare les briques nécessaires pour cette pièce (`compteur_cle`) avec les briques qu'il lui reste (`compteur_lettres_restantes`).
+    *   Le calcul `lettres_a_emprunter = compteur_cle - compteur_lettres_restantes` identifie les briques manquantes.
+    *   Le `cout = sum(lettres_a_emprunter.values())` est le nombre de briques qu'il devrait "emprunter" (qui ne sont pas dans sa boîte actuelle).
+3.  **Il prend une décision :**
+    *   `if cout <= tolerance_restante:`
+    *   **Traduction :** "Est-ce que le coût pour ajouter cette pièce est dans mon budget de tolérance restant ?"
+
+**Étape C : La Délégation (L'Appel Récursif)**
+
+> "Oui, je peux me permettre d'ajouter cette pièce. Je vais demander à un assistant de finir le travail à partir de là."
+
+Si la décision est positive, l'ingénieur ne fait pas le travail lui-même. Il photocopie l'état actuel du projet et le confie à un assistant (un "clone", l'appel récursif) avec des instructions mises à jour :
+
+*   `recherche_optimisee_recursive(...)` est appelé avec un **nouvel état du problème** :
+    *   **Une boîte de LEGO plus petite (`nouveau_compteur_restant`) :** L'inventaire des briques après avoir construit la pièce actuelle.
+    *   **Un budget de tolérance réduit (`nouvelle_tolerance_restante`) :** Le budget initial moins le coût de la pièce qu'il vient d'ajouter.
+    *   **Un plan de montage mis à jour (`chemin_actuel + [cle_canonique]`) :** Le plan de l'assemblage en cours, avec la nouvelle pièce ajoutée.
+    *   **Un catalogue restreint (`start_index = i`) :** C'est une optimisation cruciale. Il dit à son assistant : "Ne perds pas de temps à essayer les pièces que j'ai déjà évaluées ou écartées. Commence ton travail à partir de cette pièce dans le catalogue." Cela évite de tester les combinaisons `(A, B)` puis `(B, A)` et prévient les boucles infinies.
+
+##### 3. La Fin de la Mission (Le Retour de la Récursion)
+
+Quand un assistant (un appel récursif) a fini d'explorer toutes les possibilités qui lui ont été confiées (sa boucle `for` est terminée), il rend son rapport à son supérieur (la fonction retourne).
+
+Le supérieur continue alors sa propre boucle `for`, en essayant la **pièce suivante** dans le catalogue. C'est le **backtracking** en action : en ne passant pas l'état modifié mais en reprenant simplement la boucle, on "annule" implicitement le choix précédent pour en explorer un autre.
+
+Ce processus se poursuit jusqu'à ce que l'ingénieur initial ait exploré toutes les branches de possibilités qu'il pouvait initier. Le résultat final est la liste complète de tous les plans de montage valides qu'il a pu trouver.
