@@ -120,7 +120,7 @@ Le cœur du programme est la fonction `recherche_optimisee_recursive`. Pour comp
 
 ##### 1. Le Cahier des Charges (Les Paramètres Initiaux)
 
-L'ingénieur reçoit un cahier des charges précis pour démarrer sa mission. C'est l'appel initial à la fonction :
+Imaginons un ingénieur recevant un cahier des charges précis pour démarrer sa mission : trouver les anagrammes. Il fait un appel initial à la fonction :
 
 *   **La Boîte de LEGO (`compteur_lettres_cible`) :** C'est un `Counter` (un inventaire précis) de toutes les briques (lettres) disponibles pour le projet. C'est l'état initial de nos ressources.
 *   **Le Catalogue de Pièces (`cles_canoniques`) :** C'est la liste de toutes les "pièces assemblées" autorisées (mots sous leur forme canonique, ex: `deimno` pour "monde"). Pour optimiser, ce catalogue est trié des pièces les plus grandes aux plus petites.
