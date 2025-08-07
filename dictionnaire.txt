@@ -10059,7 +10059,7 @@ gadoue
 Gaëlle
 gaffe
 gage
-gager 
+gager
 gages
 gageure
 gagnage
@@ -11865,7 +11865,7 @@ instruire
 instruit
 instrument
 instruments
-insu 
+insu
 insuccès
 insuffisamment
 insuffisance
@@ -13082,7 +13082,7 @@ loquace
 loque
 lord
 Lorenzo
-lorgner 
+lorgner
 Lorient
 loriot
 lorraine
@@ -19090,7 +19090,7 @@ Rila
 Rimbaud
 rime
 rincer
-rincer 
+rincer
 ringard
 Rio
 ripa
@@ -19510,7 +19510,7 @@ satisfaits
 satisfont
 saturation
 saturer
-satyre 
+satyre
 sauce
 saucisse
 saucisson
@@ -22741,4 +22741,3 @@ zoologie
 zozoter
 Zurich
 zygote
-
