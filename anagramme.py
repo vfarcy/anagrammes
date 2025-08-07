@@ -64,7 +64,7 @@ def sauvegarder_derniere_expression(expr: str):
         print(f"Impossible de sauvegarder la derniere expression : {e}", file=sys.stderr)
 
 
-def trouver_anagrammes_approximatifs(expression_cible: str, dictionnaire_a_utiliser: Set[str], tolerance_requise: int) -> List[Dict]:
+def trouver_anagrammes_approximatifs(expression_cible: str, dictionnaire_a_utiliser: Set[str], tolerance_requise: int, verbose: bool = False) -> List[Dict]:
     """Fonction principale pour orchestrer la recherche d'anagrammes approximatifs."""
     print(f"\nAnalyse de l'expression avec une tolerance de {tolerance_requise} lettre(s)...")
 
@@ -104,7 +104,7 @@ def trouver_anagrammes_approximatifs(expression_cible: str, dictionnaire_a_utili
     print("Lancement de la recherche approximative...")
 
     solutions = []  # On s'assure que la liste est bien vide avant de commencer.
-    recherche_recursive_approximative(compteur_lettres_cible, candidats, [], solutions, tolerance_requise)
+    recherche_recursive_approximative(compteur_lettres_cible, candidats, [], solutions, tolerance_requise, verbose=verbose)
 
     # Trier les solutions pour un affichage plus propre
     # On trie par difference, puis par nombre de mots, puis alphabetiquement
@@ -119,14 +119,16 @@ def recherche_recursive_approximative(
         chemin_actuel: List[str],
         solutions: List[Dict],
         tolerance_actuelle: int,
-        start_index: int = 0
+        start_index: int = 0,
+        verbose: bool = False
 ) -> None:
     """
     Fonction recursive qui cherche des combinaisons de mots de maniere exhaustive.
     """
-    indentation = "  " * len(chemin_actuel)
-    print(f"{indentation}RECURSION: Lettres restantes: {''.join(sorted(compteur_lettres.elements()))}, Chemin: {chemin_actuel}, Tolerance: {tolerance_actuelle}")
-    sys.stdout.flush()
+    if verbose:
+        indentation = "  " * len(chemin_actuel)
+        print(f"{indentation}RECURSION: Lettres restantes: {''.join(sorted(compteur_lettres.elements()))}, Chemin: {chemin_actuel}, Tolerance: {tolerance_actuelle}")
+        sys.stdout.flush()
 
     # On a une solution potentielle. On l'enregistre si elle respecte la tolerance.
     lettres_restantes_compteur = sum(compteur_lettres.values())
@@ -144,8 +146,9 @@ def recherche_recursive_approximative(
     if chemin_actuel and is_solution_valid:
         reste = ''.join(sorted(compteur_lettres.elements()))
         solution_str = ' '.join(chemin_actuel)
-        print(f"{indentation}  SOLUTION TROUVEE: {solution_str} (reste: '{reste}' | diff: {lettres_restantes_compteur})")
-        sys.stdout.flush()
+        if verbose:
+            print(f"{indentation}  SOLUTION TROUVEE: {solution_str} (reste: '{reste}' | diff: {lettres_restantes_compteur})")
+            sys.stdout.flush()
         solutions.append({
             'solution_str': solution_str,
             'reste': reste,
@@ -160,8 +163,9 @@ def recherche_recursive_approximative(
     # Boucle de recherche
     for i in range(start_index, len(candidats)):
         candidat = candidats[i]
-        print(f"{indentation}  TESTING CANDIDAT: {candidat.original}")
-        sys.stdout.flush()
+        if verbose:
+            print(f"{indentation}  TESTING CANDIDAT: {candidat.original}")
+            sys.stdout.flush()
 
         # VERIFICATION : Le candidat peut-il etre forme avec les lettres restantes ?
         if all(compteur_lettres[char] >= candidat.counter[char] for char in candidat.counter):
@@ -174,7 +178,8 @@ def recherche_recursive_approximative(
                 chemin_actuel + [candidat.original],
                 solutions,
                 tolerance_actuelle,
-                i + 1  # On continue avec les mots suivants pour eviter les doublons
+                i + 1,  # On continue avec les mots suivants pour eviter les doublons
+                verbose=verbose
             )
 
 
@@ -203,7 +208,11 @@ if __name__ == "__main__":
             except ValueError:
                 print(f"Entree invalide. Utilisation de la tolerance par defaut : {tolerance}")
 
-            solutions_trouvees = trouver_anagrammes_approximatifs(expression, dictionnaire, tolerance)
+            # Nouvelle option pour la progression
+            verbose_input = input("Afficher la progression de la recherche (o/N) ? ").lower()
+            afficher_progression = (verbose_input == 'o')
+
+            solutions_trouvees = trouver_anagrammes_approximatifs(expression, dictionnaire, tolerance, verbose=afficher_progression)
 
             print("\n----------------- RESULTATS APPROXIMATIFS -----------------")
             if solutions_trouvees:
