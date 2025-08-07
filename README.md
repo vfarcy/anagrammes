@@ -173,3 +173,100 @@ Quand un assistant (un appel récursif) a fini d'explorer toutes les possibilit�
 Le supérieur continue alors sa propre boucle `for`, en essayant la **pièce suivante** dans le catalogue. C'est le **backtracking** en action : en ne passant pas l'état modifié mais en reprenant simplement la boucle, on "annule" implicitement le choix précédent pour en explorer un autre.
 
 Ce processus se poursuit jusqu'à ce que l'ingénieur initial ait exploré toutes les branches de possibilités qu'il pouvait initier. Le résultat final est la liste complète de tous les plans de montage valides qu'il a pu trouver.
+
+##### 4. Exemple
+
+Imaginons que nous cherchons les anagrammes de "le cinema" (aceeilmn).
+
+ [ APPEL INITIAL ]
+  Lettres: [a,c,e,e,i,l,m,n]
+  Chemin actuel: []
+  Tolérance: 1
+  │
+  ├─> Boucle sur les mots possibles (triés par longueur)...
+  │
+  ├─ Essai avec "malice":
+  │   │ Coût: 0 (toutes les lettres sont dispo)
+  │   │
+  │   └─────> [ APPEL RÉCURSIF N°1 (Profondeur 1) ]
+  │             Lettres restantes: [e,n]
+  │             Chemin actuel: ["malice"]
+  │             Tolérance restante: 1
+  │             │
+  │             ├─> Boucle sur les mots restants...
+  │             │
+  │             ├─ Essai avec "en":
+  │             │   │ Coût: 0
+  │             │   │
+  │             │   └─────> [ APPEL RÉCURSIF N°2 (Profondeur 2) ]
+  │             │             Lettres restantes: []
+  │             │             Chemin actuel: ["malice", "en"]
+  │             │             Tolérance restante: 1
+  │             │             │
+  │             │             ├─> Les lettres restantes (0) <= Tolérance (1) -> SOLUTION TROUVÉE : "malice en"
+  │             │             │
+  │             │             └─> (Fin de la boucle, plus de mots possibles)
+  │             │
+  │             └──────────< [ RETOUR au niveau 1 ]
+  │
+  ├─ Essai avec "calme":
+  │   │ Coût: 0
+  │   │
+  │   └─────> [ APPEL RÉCURSIF N°3 (Profondeur 1) ]
+  │             Lettres restantes: [e,i,n]
+  │             Chemin actuel: ["calme"]
+  │             Tolérance restante: 1
+  │             │
+  │             ├─> Boucle sur les mots restants...
+  │             │
+  │             ├─ Essai avec "nie":
+  │             │   │ Coût: 0
+  │             │   │
+  │             │   └─────> [ APPEL RÉCURSIF N°4 (Profondeur 2) ]
+  │             │             Lettres restantes: []
+  │             │             Chemin actuel: ["calme", "nie"]
+  │             │             Tolérance restante: 1
+  │             │             │
+  │             │             ├─> Les lettres restantes (0) <= Tolérance (1) -> SOLUTION TROUVÉE : "calme nie"
+  │             │             │
+  │             │             └─> (Fin de la boucle)
+  │             │
+  │             └──────────< [ RETOUR au niveau 1 ]
+  │
+  ├─ Essai avec "lamine":
+  │   │ Coût: 0
+  │   │
+  │   └─────> [ APPEL RÉCURSIF N°5 (Profondeur 1) ]
+  │             Lettres restantes: [c,e]
+  │             Chemin actuel: ["lamine"]
+  │             Tolérance restante: 1
+  │             │
+  │             ├─> Boucle sur les mots restants...
+  │             │
+  │             ├─ Essai avec "ce":
+  │             │   │ Coût: 0
+  │             │   │
+  │             │   └─────> [ APPEL RÉCURSIF N°6 (Profondeur 2) ]
+  │             │             Lettres restantes: []
+  │             │             Chemin actuel: ["lamine", "ce"]
+  │             │             Tolérance restante: 1
+  │             │             │
+  │             │             ├─> SOLUTION TROUVÉE : "lamine ce"
+  │             │             │
+  │             │             └─> (Fin de la boucle)
+  │             │
+  │             └──────────< [ RETOUR au niveau 1 ]
+  │
+  ├─ Essai avec "cinema" (lui-même):
+  │   │ Coût: 0
+  │   │
+  │   └─────> [ APPEL RÉCURSIF N°7 (Profondeur 1) ]
+  │             Lettres restantes: [l]
+  │             Chemin actuel: ["cinema"]
+  │             Tolérance restante: 1
+  │             │
+  │             ├─> Les lettres restantes (1) <= Tolérance (1) -> SOLUTION TROUVÉE : "cinema" (reste: 'l')
+  │             │
+  │             └─> (Fin de la boucle)
+  │
+  └─ (L'algorithme continue d'explorer d'autres branches...)
