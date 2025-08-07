@@ -100,7 +100,7 @@ Cette approche explore l'arbre des possibilités, en "élaguant" les branches qu
 Pour éviter de proposer une limite de résultats fixe, le programme utilise une fonction mathématique (une **courbe logistique** ou **sigmoïde**) pour calculer une suggestion adaptée. Cette courbe modélise parfaitement le besoin : une croissance lente pour les mots courts, une accélération rapide pour les mots de complexité moyenne, et un plateau pour les mots très longs. Cela rend le programme plus "intelligent" et améliore l'expérience utilisateur.
 
 
-## Explication de l'algo. Analogie pour un étudiant en informatique
+## 5. Explication de l'algo. Analogie pour un étudiant en informatique
 
 ### Chercheur d'Anagrammes
 
