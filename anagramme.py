@@ -12,7 +12,17 @@ DICTIONARY_PATH = "dictionnaire.txt"
 CANONICAL_DICT_CACHE_PATH = "dictionnaire_canonique.pkl"
 
 
-# --- Structure de données Trie ---
+# --- Classes et Fonctions Utilitaires ---
+
+class Colors:
+    """Classe pour les codes de couleur ANSI pour le terminal."""
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    BOLD = '\033[1m'
+    ENDC = '\033[0m'
+
+
 class TrieNode:
     """Un nœud dans la structure de données Trie."""
 
@@ -21,13 +31,23 @@ class TrieNode:
         self.mots = []
 
 
-# --- Fonctions de Normalisation et Prétraitement ---
-
 def normaliser_chaine(s):
     """Convertit une chaîne en minuscule et supprime les accents."""
     s_decomposed = unicodedata.normalize('NFD', s.lower())
     return "".join(c for c in s_decomposed if unicodedata.category(c) != 'Mn')
 
+
+def afficher_barre_progression(iteration, total, prefixe='', suffixe='', longueur=50):
+    """Affiche une barre de progression dans le terminal."""
+    if total == 0: total = 1
+    pourcentage = (iteration / float(total)) * 100
+    nb_barres_pleines = int(longueur * iteration // total)
+    barre = '█' * nb_barres_pleines + '-' * (longueur - nb_barres_pleines)
+    sys.stdout.write(f'\r{prefixe} |{barre}| {pourcentage:.2f}% {suffixe} ')
+    sys.stdout.flush()
+
+
+# --- Fonctions de Prétraitement et de Cache ---
 
 def construire_trie_canonique(chemin_dict_brut):
     """Construit un Trie à partir des mots du dictionnaire."""
@@ -36,7 +56,8 @@ def construire_trie_canonique(chemin_dict_brut):
         with open(chemin_dict_brut, 'r', encoding='utf-8') as f:
             mots = [ligne.strip() for ligne in f]
     except FileNotFoundError:
-        print(f"\nERREUR CRITIQUE: Le fichier dictionnaire '{chemin_dict_brut}' est introuvable.")
+        print(
+            f"\n{Colors.BOLD}ERREUR CRITIQUE:{Colors.ENDC} Le fichier dictionnaire '{chemin_dict_brut}' est introuvable.")
         print("Veuillez créer ce fichier et y ajouter une liste de mots.")
         sys.exit(1)
 
@@ -46,7 +67,6 @@ def construire_trie_canonique(chemin_dict_brut):
     for i, mot in enumerate(mots):
         forme_canonique = "".join(sorted(normaliser_chaine(mot)))
         if not forme_canonique: continue
-
         node = trie_racine
         for char in forme_canonique:
             if char not in node.enfants:
@@ -57,6 +77,7 @@ def construire_trie_canonique(chemin_dict_brut):
             afficher_barre_progression(i + 1, total_mots, prefixe='Construction du Trie:', suffixe='Complet',
                                        longueur=40)
 
+    print()  # Saut de ligne après la barre
     return trie_racine
 
 
@@ -67,17 +88,17 @@ def charger_dictionnaire_trie(chemin_dict_brut, chemin_cache):
         try:
             with open(chemin_cache, 'rb') as f_cache:
                 trie_racine = pickle.load(f_cache)
-            print("Chargement terminé.")
+            print(f"{Colors.GREEN}Chargement terminé.{Colors.ENDC}")
             return trie_racine
         except (pickle.UnpicklingError, EOFError) as e:
-            print(f"Erreur de chargement du cache ({e}). Reconstruction du dictionnaire.")
+            print(f"{Colors.YELLOW}Erreur de chargement du cache ({e}). Reconstruction du dictionnaire.{Colors.ENDC}")
 
     print("Le cache du dictionnaire n'a pas été trouvé ou est invalide.")
     trie_racine = construire_trie_canonique(chemin_dict_brut)
-    print("Sauvegarde du dictionnaire canonique dans le cache pour les futurs lancements...")
+    print("Sauvegarde du dictionnaire canonique dans le cache...")
     with open(chemin_cache, 'wb') as f_cache:
         pickle.dump(trie_racine, f_cache)
-    print("Sauvegarde terminée.")
+    print(f"{Colors.GREEN}Sauvegarde terminée.{Colors.ENDC}")
     return trie_racine
 
 
@@ -98,9 +119,7 @@ def _chercher_mots_dans_trie(node, compteur):
 
 
 def _recherche_anagrammes_interne(compteur_lettres, tolerance_moins, trie_racine):
-    """
-    Le cœur de l'algorithme de recherche pour un compteur et une tolérance "en moins" donnés.
-    """
+    """Le cœur de l'algorithme de recherche pour un compteur et une tolérance "en moins" donnés."""
     solutions_locales = set()
 
     def recherche_recursive(compteur_actuel, chemin_actuel):
@@ -121,9 +140,7 @@ def _recherche_anagrammes_interne(compteur_lettres, tolerance_moins, trie_racine
 
 
 def trouver_anagrammes_trie(expression, tolerance, trie_racine):
-    """
-    Fonction principale qui orchestre la recherche avec tolérance symétrique.
-    """
+    """Fonction principale qui orchestre la recherche avec tolérance symétrique."""
     expression_normalisee = normaliser_chaine(expression)
     lettres_canoniques = sorted(c for c in expression_normalisee if 'a' <= c <= 'z')
     compteur_lettres_initial = Counter(lettres_canoniques)
@@ -131,26 +148,18 @@ def trouver_anagrammes_trie(expression, tolerance, trie_racine):
     solutions_globales = set()
     alphabet = "abcdefghijklmnopqrstuvwxyz"
 
-    # --- Calcul du nombre total de tâches pour la barre de progression ---
-    total_taches = 0
-    for k_plus in range(tolerance + 1):
-        total_taches += math.comb(len(alphabet) + k_plus - 1, k_plus)
-
+    total_taches = sum(math.comb(len(alphabet) + k - 1, k) for k in range(tolerance + 1))
     taches_faites = 0
+
     print(f"\nLancement de la recherche (Tolérance symétrique de {tolerance})...")
     afficher_barre_progression(0, total_taches, prefixe='Recherche:', suffixe='En cours', longueur=40)
 
-    # --- Boucle principale pour la tolérance symétrique ---
     for k_plus in range(tolerance + 1):
         tolerance_moins = tolerance - k_plus
-
-        # Itère sur toutes les combinaisons de 'k_plus' lettres à ajouter
         for combo in itertools.combinations_with_replacement(alphabet, k_plus):
             compteur_modifie = compteur_lettres_initial.copy()
-            for char_to_add in combo:
-                compteur_modifie[char_to_add] += 1
+            compteur_modifie.update(combo)
 
-            # Lance la recherche pour cette configuration
             solutions_trouvees = _recherche_anagrammes_interne(compteur_modifie, tolerance_moins, trie_racine)
             solutions_globales.update(solutions_trouvees)
 
@@ -160,7 +169,6 @@ def trouver_anagrammes_trie(expression, tolerance, trie_racine):
 
     if total_taches > 0: print()
 
-    # --- Formatage final des résultats ---
     resultats_formates = []
     for sol in solutions_globales:
         lettres_sol_normalisees = normaliser_chaine("".join(sol))
@@ -181,33 +189,13 @@ def trouver_anagrammes_trie(expression, tolerance, trie_racine):
     return resultats_formates
 
 
-# --- Fonctions Utilitaires ---
-def calculer_limite_affichage(nombre_lettres):
-    """Calcule le nombre de résultats à afficher."""
-    L = 200;
-    k = 0.4;
-    n0 = 13
-    limite = L / (1 + math.exp(-k * (nombre_lettres - n0)))
-    return max(20, int(round(limite)))
-
-
-def afficher_barre_progression(iteration, total, prefixe='', suffixe='', longueur=50):
-    """Affiche une barre de progression dans le terminal."""
-    if total == 0: total = 1
-    pourcentage = (iteration / float(total)) * 100
-    nb_barres_pleines = int(longueur * iteration // total)
-    barre = '█' * nb_barres_pleines + '-' * (longueur - nb_barres_pleines)
-    sys.stdout.write(f'\r{prefixe} |{barre}| {pourcentage:.2f}% {suffixe} ')
-    sys.stdout.flush()
-
-
 # --- Point d'Entrée Principal ---
 if __name__ == "__main__":
     dictionnaire_trie = charger_dictionnaire_trie(DICTIONARY_PATH, CANONICAL_DICT_CACHE_PATH)
 
     while True:
         print("\n" + "=" * 50)
-        expression_entree = input("Entrez une expression (ou 'q' pour quitter): ")
+        expression_entree = input(f"{Colors.BOLD}Entrez une expression (ou 'q' pour quitter):{Colors.ENDC} ")
         if expression_entree.lower() == 'q': break
 
         lettres_utiles = [c for c in normaliser_chaine(expression_entree) if 'a' <= c <= 'z']
@@ -223,40 +211,71 @@ if __name__ == "__main__":
             tolerance = tolerance_suggeree
             print(f"Entrée invalide. Utilisation de la tolérance par défaut: {tolerance}")
 
-        limite_suggeree = calculer_limite_affichage(len(lettres_utiles))
         try:
-            limite_affichage = int(input(f"Nombre max de résultats (suggéré: {limite_suggeree}): ") or limite_suggeree)
+            limite_affichage = int(input(f"Nombre max de résultats à afficher (ex: 50): ") or 50)
         except ValueError:
-            limite_affichage = limite_suggeree
+            limite_affichage = 50
             print(f"Entrée invalide. Utilisation de la limite par défaut: {limite_affichage}")
 
         resultats_anagrammes = trouver_anagrammes_trie(expression_entree, tolerance, dictionnaire_trie)
 
-        # Trier les résultats par différence totale croissante
-        resultats_anagrammes.sort(key=lambda x: x['nb_moins'] + x['nb_plus'])
+        # --- NOUVELLE LOGIQUE D'AFFICHAGE GROUPÉE ET COLORÉE ---
+        if not resultats_anagrammes:
+            print("\n" + "-" * 17 + " RÉSULTATS " + "-" * 17)
+            print("Aucune anagramme n'a été trouvée.")
+            print("-" * (45))
+            continue
 
-        print("\n" + "-" * 17 + " RÉSULTATS " + "-" * 17)
-        if resultats_anagrammes:
-            for i, anag_info in enumerate(resultats_anagrammes):
-                if i >= limite_affichage:
-                    print(f"\n... et {len(resultats_anagrammes) - limite_affichage} autre(s) résultat(s).")
+        grouped_results = {}
+        for res in resultats_anagrammes:
+            total_diff = res['nb_plus'] + res['nb_moins']
+            if total_diff not in grouped_results:
+                grouped_results[total_diff] = []
+            grouped_results[total_diff].append(res)
+
+        print("\n" + "=" * 17 + " RÉSULTATS " + "=" * 17)
+
+        printed_count = 0
+        stop_printing = False
+
+        for diff_level in sorted(grouped_results.keys()):
+            if stop_printing: break
+
+            results_in_group = sorted(grouped_results[diff_level], key=lambda x: " ".join(x['solution']))
+
+            # Affichage du titre du groupe
+            header_color = Colors.BLUE
+            header_text = f"--- Différence {diff_level} ---"
+            if diff_level == 0:
+                header_color = Colors.GREEN
+                header_text = f"--- Différence 0 (Anagrammes parfaites) ---"
+            elif diff_level == 1:
+                header_color = Colors.YELLOW
+            print(f"\n{header_color}{Colors.BOLD}{header_text}{Colors.ENDC}")
+
+            for anag_info in results_in_group:
+                if printed_count >= limite_affichage:
+                    stop_printing = True
                     break
 
                 solution_str = " ".join(anag_info['solution'])
-                longueur_str = f"{anag_info['longueur']} lettres"
+                longueur_str = f"({anag_info['longueur']} lettres)"
 
-                # Construction de la chaîne de différence
                 diff_parts = []
                 if anag_info['nb_plus'] > 0:
-                    diff_parts.append(f"+{anag_info['nb_plus']} ({anag_info['str_plus']})")
+                    diff_parts.append(f"ajouté: {Colors.GREEN}{anag_info['str_plus']}{Colors.ENDC}")
                 if anag_info['nb_moins'] > 0:
-                    diff_parts.append(f"-{anag_info['nb_moins']} ({anag_info['str_moins']})")
+                    diff_parts.append(f"reste: {Colors.YELLOW}{anag_info['str_moins']}{Colors.ENDC}")
 
                 if not diff_parts:
-                    print(f"{solution_str} ({longueur_str}, anagramme parfaite)")
+                    print(f"{Colors.GREEN}{solution_str}{Colors.ENDC} {longueur_str}")
                 else:
-                    diff_str = ", ".join(diff_parts)
-                    print(f"{solution_str} ({longueur_str}, diff: {diff_str})")
-        else:
-            print("Aucune anagramme n'a été trouvée.")
-        print("-" * (45))
+                    diff_str = " | ".join(diff_parts)
+                    print(f"{solution_str} {longueur_str} [{diff_str}]")
+
+                printed_count += 1
+
+        if len(resultats_anagrammes) > printed_count:
+            print(f"\n... et {len(resultats_anagrammes) - printed_count} autre(s) résultat(s).")
+
+        print("\n" + "=" * (45))
