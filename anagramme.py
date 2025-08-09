@@ -266,24 +266,23 @@ if __name__ == "__main__":
 
             for i, anag_info in enumerate(results_in_group):
                 solution_str = " ".join(anag_info['solution'])
-                longueur_str = f"({anag_info['longueur']} lettres)"
                 counter_str = f"[{i + 1}/{total_in_group}]"
 
+                # Construction de la ligne de résultat en une seule fois
+                line = f'  {counter_str} "{Colors.GREEN}{solution_str}{Colors.ENDC}"'
+
+                # Ajout des informations sur les lettres
                 diff_parts = []
                 if anag_info['nb_plus'] > 0:
-                    diff_parts.append(f"ajouté: {Colors.GREEN}{anag_info['str_plus']}{Colors.ENDC}")
+                    diff_parts.append(f"lettres ajoutées: {Colors.GREEN}{anag_info['str_plus']}{Colors.ENDC}")
                 if anag_info['nb_moins'] > 0:
-                    diff_parts.append(f"reste: {Colors.YELLOW}{anag_info['str_moins']}{Colors.ENDC}")
+                    diff_parts.append(f"lettres retirées: {Colors.YELLOW}{anag_info['str_moins']}{Colors.ENDC}")
 
-                if not diff_parts:
-                    lignes_a_imprimer.append(
-                        f"  {counter_str} • {Colors.GREEN}{solution_str}{Colors.ENDC} {longueur_str}")
-                else:
-                    ligne1 = f"  {counter_str} • {solution_str} {longueur_str}"
-                    diff_str = " | ".join(diff_parts)
-                    ligne2 = f"    └─ [ {diff_str} ]"
-                    lignes_a_imprimer.append(ligne1)
-                    lignes_a_imprimer.append(ligne2)
+                if diff_parts:
+                    diff_str = ", ".join(diff_parts)
+                    line += f" ({diff_str})"
+                
+                lignes_a_imprimer.append(line)
 
             page_size = 25
             start_index = 0
@@ -300,4 +299,3 @@ if __name__ == "__main__":
                     if voir_plus.lower() == 'n':
                         break
             print("-" * 45)
-
