@@ -133,7 +133,7 @@ def _recherche_anagrammes_interne(compteur_lettres, tolerance_moins, trie_racine
             lettres_restantes = sum(compteur_apres_mot.values())
             if lettres_restantes <= tolerance_moins:
                 solutions_locales.add(solution_triee)
-            if lettres_restantes > 1:
+            if lettres_restantes > 0:
                 recherche_recursive(compteur_apres_mot, nouveau_chemin)
 
     recherche_recursive(compteur_lettres, [])
