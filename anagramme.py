@@ -187,7 +187,8 @@ def trouver_anagrammes_trie(expression, tolerance, trie_racine):
 
     resultats_formates = []
     for sol in solutions_globales:
-        lettres_sol_normalisees = normaliser_chaine(" ".join(sol))
+        # Correction : ne pas inclure les espaces dans le compteur de lettres de la solution
+        lettres_sol_normalisees = normaliser_chaine("".join(sol))  # sans espace entre les mots
         compteur_sol = Counter(lettres_sol_normalisees)
 
         lettres_en_moins = compteur_lettres_initial - compteur_sol
@@ -245,8 +246,9 @@ def run_interactive_mode(dictionnaire_trie):
         # 2. Boucle d'interaction pour l'exploration des résultats
         while True:
             print("\n" + "=" * 17 + " RÉSUMÉ DES RÉSULTATS " + "=" * 17)
-            for diff_level in range(tolerance + 1):
-                count = len(grouped_results.get(diff_level, []))
+            for diff_level in sorted(grouped_results.keys()):
+                count = len(grouped_results[diff_level])
+
 
                 color = Colors.BLUE
                 if count == 0:
@@ -256,7 +258,7 @@ def run_interactive_mode(dictionnaire_trie):
                 elif diff_level == 1:
                     color = Colors.YELLOW
 
-                print(f"{color}--- Différence {diff_level}: {Colors.BOLD}{count}{color} résultat(s){Colors.ENDC}")
+                print(f"{color}--- Différence {diff_level}: {Colors.BOLD}{count}{color} résultat(s) trouvés{Colors.ENDC}")
 
             try:
                 choix = input(f"\nQuelle différence afficher ? ('n' pour nouvelle recherche, 'q' pour quitter): ").strip()
