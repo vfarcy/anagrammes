@@ -19,6 +19,7 @@ class Colors:
     GREEN = '\033[92m'
     YELLOW = '\033[93m'
     BLUE = '\033[94m'
+    GRAY = '\033[90m'  # Couleur pour les résultats nuls
     BOLD = '\033[1m'
     ENDC = '\033[0m'
 
@@ -193,39 +194,32 @@ def trouver_anagrammes_trie(expression, tolerance, trie_racine):
 if __name__ == "__main__":
     dictionnaire_trie = charger_dictionnaire_trie(DICTIONARY_PATH, CANONICAL_DICT_CACHE_PATH)
 
-    while True:
-        print("\n" + "=" * 50)
-        expression_entree = input(f"{Colors.BOLD}Entrez une expression (ou 'q' pour quitter):{Colors.ENDC} ")
-        if expression_entree.lower() == 'q': break
+    while True:  # Boucle principale pour les nouvelles expressions
+        expression_actuelle = input(f"\n{Colors.BOLD}Entrez une expression (ou 'q' pour quitter):{Colors.ENDC} ")
 
-        lettres_utiles = [c for c in normaliser_chaine(expression_entree) if 'a' <= c <= 'z']
+        if expression_actuelle.lower() == 'q':
+            break
+
+        lettres_utiles = [c for c in normaliser_chaine(expression_actuelle) if 'a' <= c <= 'z']
         if not lettres_utiles:
             print("Veuillez entrer une expression contenant des lettres.")
             continue
 
         try:
             tolerance_suggeree = 1 if len(lettres_utiles) > 8 else 0
-            tolerance = int(
-                input(f"Entrez la tolérance (symétrique, suggéré: {tolerance_suggeree}): ") or tolerance_suggeree)
+            tolerance_input = input(
+                f"Entrez la tolérance pour \"{expression_actuelle}\" (suggéré: {tolerance_suggeree}): ")
+            if tolerance_input == "":
+                tolerance = tolerance_suggeree
+            else:
+                tolerance = int(tolerance_input)
         except ValueError:
             tolerance = tolerance_suggeree
             print(f"Entrée invalide. Utilisation de la tolérance par défaut: {tolerance}")
 
-        try:
-            limite_affichage = int(input(f"Nombre max de résultats à afficher (ex: 50): ") or 50)
-        except ValueError:
-            limite_affichage = 50
-            print(f"Entrée invalide. Utilisation de la limite par défaut: {limite_affichage}")
+        resultats_anagrammes = trouver_anagrammes_trie(expression_actuelle, tolerance, dictionnaire_trie)
 
-        resultats_anagrammes = trouver_anagrammes_trie(expression_entree, tolerance, dictionnaire_trie)
-
-        # --- NOUVELLE LOGIQUE D'AFFICHAGE GROUPÉE ET COLORÉE ---
-        if not resultats_anagrammes:
-            print("\n" + "-" * 17 + " RÉSULTATS " + "-" * 17)
-            print("Aucune anagramme n'a été trouvée.")
-            print("-" * (45))
-            continue
-
+        # 1. Grouper les résultats
         grouped_results = {}
         for res in resultats_anagrammes:
             total_diff = res['nb_plus'] + res['nb_moins']
@@ -233,33 +227,47 @@ if __name__ == "__main__":
                 grouped_results[total_diff] = []
             grouped_results[total_diff].append(res)
 
-        print("\n" + "=" * 17 + " RÉSULTATS " + "=" * 17)
+        # 2. Boucle d'interaction pour l'exploration des résultats
+        while True:
+            print("\n" + "=" * 17 + " RÉSUMÉ DES RÉSULTATS " + "=" * 17)
+            for diff_level in range(tolerance + 1):
+                count = len(grouped_results.get(diff_level, []))
 
-        printed_count = 0
-        stop_printing = False
+                color = Colors.BLUE
+                if count == 0:
+                    color = Colors.GRAY
+                elif diff_level == 0:
+                    color = Colors.GREEN
+                elif diff_level == 1:
+                    color = Colors.YELLOW
 
-        for diff_level in sorted(grouped_results.keys()):
-            if stop_printing: break
+                print(f"{color}--- Différence {diff_level}: {Colors.BOLD}{count}{color} résultat(s){Colors.ENDC}")
 
-            results_in_group = sorted(grouped_results[diff_level], key=lambda x: " ".join(x['solution']))
-
-            # Affichage du titre du groupe
-            header_color = Colors.BLUE
-            header_text = f"--- Différence {diff_level} ---"
-            if diff_level == 0:
-                header_color = Colors.GREEN
-                header_text = f"--- Différence 0 (Anagrammes parfaites) ---"
-            elif diff_level == 1:
-                header_color = Colors.YELLOW
-            print(f"\n{header_color}{Colors.BOLD}{header_text}{Colors.ENDC}")
-
-            for anag_info in results_in_group:
-                if printed_count >= limite_affichage:
-                    stop_printing = True
+            try:
+                choix = input(f"\nQuelle différence afficher ? ('n' pour nouvelle recherche, 'q' pour quitter): ")
+                if choix.lower() == 'q':
+                    sys.exit()
+                if choix.lower() == 'n':
                     break
 
+                choix_diff = int(choix)
+                if choix_diff not in grouped_results:
+                    print(f"{Colors.YELLOW}Niveau de différence invalide ou sans résultats.{Colors.ENDC}")
+                    continue
+
+            except ValueError:
+                print(f"{Colors.YELLOW}Veuillez entrer un nombre, 'n' ou 'q'.{Colors.ENDC}")
+                continue
+
+            # 3. Affichage paginé du groupe choisi
+            lignes_a_imprimer = []
+            results_in_group = sorted(grouped_results[choix_diff], key=lambda x: " ".join(x['solution']))
+            total_in_group = len(results_in_group)
+
+            for i, anag_info in enumerate(results_in_group):
                 solution_str = " ".join(anag_info['solution'])
                 longueur_str = f"({anag_info['longueur']} lettres)"
+                counter_str = f"[{i + 1}/{total_in_group}]"
 
                 diff_parts = []
                 if anag_info['nb_plus'] > 0:
@@ -268,14 +276,28 @@ if __name__ == "__main__":
                     diff_parts.append(f"reste: {Colors.YELLOW}{anag_info['str_moins']}{Colors.ENDC}")
 
                 if not diff_parts:
-                    print(f"{Colors.GREEN}{solution_str}{Colors.ENDC} {longueur_str}")
+                    lignes_a_imprimer.append(
+                        f"  {counter_str} • {Colors.GREEN}{solution_str}{Colors.ENDC} {longueur_str}")
                 else:
+                    ligne1 = f"  {counter_str} • {solution_str} {longueur_str}"
                     diff_str = " | ".join(diff_parts)
-                    print(f"{solution_str} {longueur_str} [{diff_str}]")
+                    ligne2 = f"    └─ [ {diff_str} ]"
+                    lignes_a_imprimer.append(ligne1)
+                    lignes_a_imprimer.append(ligne2)
 
-                printed_count += 1
+            page_size = 25
+            start_index = 0
+            print("-" * 45)
+            while start_index < len(lignes_a_imprimer):
+                end_index = min(start_index + page_size, len(lignes_a_imprimer))
+                for i in range(start_index, end_index):
+                    print(lignes_a_imprimer[i])
 
-        if len(resultats_anagrammes) > printed_count:
-            print(f"\n... et {len(resultats_anagrammes) - printed_count} autre(s) résultat(s).")
+                start_index = end_index
+                if start_index < len(lignes_a_imprimer):
+                    voir_plus = input(
+                        f"\n... {len(lignes_a_imprimer) - start_index} ligne(s) restante(s). Appuyez sur Entrée pour continuer, ou 'n' pour revenir au sommaire: ")
+                    if voir_plus.lower() == 'n':
+                        break
+            print("-" * 45)
 
-        print("\n" + "=" * (45))
