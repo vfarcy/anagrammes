@@ -6,6 +6,7 @@ import unicodedata
 from collections import Counter
 import os
 import itertools
+import argparse
 
 # --- Constantes ---
 DICTIONARY_PATH = "dictionnaire.txt"
@@ -43,7 +44,7 @@ def afficher_barre_progression(iteration, total, prefixe='', suffixe='', longueu
     if total == 0: total = 1
     pourcentage = (iteration / float(total)) * 100
     nb_barres_pleines = int(longueur * iteration // total)
-    barre = '█' * nb_barres_pleines + '-' * (longueur - nb_barres_pleines)
+    barre = '#' * nb_barres_pleines + '-' * (longueur - nb_barres_pleines)
     sys.stdout.write(f'\r{prefixe} |{barre}| {pourcentage:.2f}% {suffixe} ')
     sys.stdout.flush()
 
@@ -103,7 +104,7 @@ def charger_dictionnaire_trie(chemin_dict_brut, chemin_cache):
     return trie_racine
 
 
-# --- Algorithme de Recherche d'Anagrammes (Tolérance Symétrique) ---
+# --- Algorithme de Recherche et de Test ---
 
 def _chercher_mots_dans_trie(node, compteur):
     """Utilitaire qui parcourt le trie et retourne tous les mots faisables à partir d'un compteur."""
@@ -118,6 +119,20 @@ def _chercher_mots_dans_trie(node, compteur):
             compteur[char] += 1  # Backtrack
     return resultats
 
+def does_word_exist(word, trie_racine):
+    """Vérifie si un mot exact existe dans le dictionnaire représenté par le Trie."""
+    forme_canonique = "".join(sorted(normaliser_chaine(word)))
+    if not forme_canonique:
+        return False
+        
+    node = trie_racine
+    for char in forme_canonique:
+        if char not in node.enfants:
+            return False
+        node = node.enfants[char]
+    
+    # Nous sommes au bon noeud canonique, vérifions si le mot original y est.
+    return word in node.mots
 
 def _recherche_anagrammes_interne(compteur_lettres, tolerance_moins, trie_racine):
     """Le cœur de l'algorithme de recherche pour un compteur et une tolérance "en moins" donnés."""
@@ -172,7 +187,7 @@ def trouver_anagrammes_trie(expression, tolerance, trie_racine):
 
     resultats_formates = []
     for sol in solutions_globales:
-        lettres_sol_normalisees = normaliser_chaine("".join(sol))
+        lettres_sol_normalisees = normaliser_chaine(" ".join(sol))
         compteur_sol = Counter(lettres_sol_normalisees)
 
         lettres_en_moins = compteur_lettres_initial - compteur_sol
@@ -190,12 +205,12 @@ def trouver_anagrammes_trie(expression, tolerance, trie_racine):
     return resultats_formates
 
 
-# --- Point d'Entrée Principal ---
-if __name__ == "__main__":
-    dictionnaire_trie = charger_dictionnaire_trie(DICTIONARY_PATH, CANONICAL_DICT_CACHE_PATH)
+# --- Modes de l application ---
 
+def run_interactive_mode(dictionnaire_trie):
+    """Lance la boucle principale du programme en mode interactif."""
     while True:  # Boucle principale pour les nouvelles expressions
-        expression_actuelle = input(f"\n{Colors.BOLD}Entrez une expression (ou 'q' pour quitter):{Colors.ENDC} ")
+        expression_actuelle = input(f"\n{Colors.BOLD}Entrez une expression (ou 'q' pour quitter):{Colors.ENDC} ").strip()
 
         if expression_actuelle.lower() == 'q':
             break
@@ -208,7 +223,7 @@ if __name__ == "__main__":
         try:
             tolerance_suggeree = 1 if len(lettres_utiles) > 8 else 0
             tolerance_input = input(
-                f"Entrez la tolérance pour \"{expression_actuelle}\" (suggéré: {tolerance_suggeree}): ")
+                f'Entrez la tolérance pour "{expression_actuelle}" (suggéré: {tolerance_suggeree}): ').strip()
             if tolerance_input == "":
                 tolerance = tolerance_suggeree
             else:
@@ -244,7 +259,7 @@ if __name__ == "__main__":
                 print(f"{color}--- Différence {diff_level}: {Colors.BOLD}{count}{color} résultat(s){Colors.ENDC}")
 
             try:
-                choix = input(f"\nQuelle différence afficher ? ('n' pour nouvelle recherche, 'q' pour quitter): ")
+                choix = input(f"\nQuelle différence afficher ? ('n' pour nouvelle recherche, 'q' pour quitter): ").strip()
                 if choix.lower() == 'q':
                     sys.exit()
                 if choix.lower() == 'n':
@@ -295,7 +310,82 @@ if __name__ == "__main__":
                 start_index = end_index
                 if start_index < len(lignes_a_imprimer):
                     voir_plus = input(
-                        f"\n... {len(lignes_a_imprimer) - start_index} ligne(s) restante(s). Appuyez sur Entrée pour continuer, ou 'n' pour revenir au sommaire: ")
+                        f"\n... {len(lignes_a_imprimer) - start_index} ligne(s) restante(s). Appuyez sur Entrée pour continuer, ou 'n' pour revenir au sommaire: ").strip()
                     if voir_plus.lower() == 'n':
                         break
             print("-" * 45)
+
+def run_test(args, dictionnaire_trie):
+    """Lance le programme en mode test non-interactif."""
+    print(f"--- Mode Test ---")
+    # 1. Vérifier que tous les arguments nécessaires sont présents
+    if not all([args.expression, args.expected, args.tolerance is not None]):
+        print(f"{Colors.YELLOW}ERREUR:{Colors.ENDC} En mode test, les arguments --expression, --expected, et --tolerance sont tous requis.")
+        sys.exit(1)
+
+    print(f"Expression: '{args.expression}'")
+    print(f"Attendu:    '{args.expected}'")
+    print(f"Tolérance:  {args.tolerance}")
+    print("-" * 17)
+
+    # 2. Valider que les mots attendus sont dans le dictionnaire
+    expected_words = args.expected.split(' ')
+    for word in expected_words:
+        if not does_word_exist(word, dictionnaire_trie):
+            print(f"{Colors.YELLOW}ERREUR DE TEST:{Colors.ENDC} Le mot '{word}' de l'anagramme attendue n'est pas dans le dictionnaire.")
+            sys.exit(1)
+    print("OK: Tous les mots attendus existent dans le dictionnaire.")
+
+    # 3. Lancer la recherche
+    resultats_anagrammes = trouver_anagrammes_trie(args.expression, args.tolerance, dictionnaire_trie)
+    
+    # 4. Formater les résultats et la chaîne attendue pour la comparaison
+    solutions_trouvees = {tuple(sorted(res['solution'])) for res in resultats_anagrammes}
+    solution_attendue = tuple(sorted(expected_words))
+
+    # 5. Vérifier le résultat
+    if solution_attendue in solutions_trouvees:
+        print(f"\n{Colors.GREEN}{Colors.BOLD}SUCCÈS : L'anagramme attendue a été trouvée.{Colors.ENDC}")
+    else:
+        print(f"\n{Colors.YELLOW}{Colors.BOLD}Échec : L'anagramme attendue n'a pas été trouvée.{Colors.ENDC}")
+        print(f"Solutions trouvées ({len(solutions_trouvees)}):")
+        # Affiche jusqu'à 5 solutions trouvées pour aider au débogage
+        for i, sol in enumerate(list(solutions_trouvees)[:5]):
+            print(f"  - {' '.join(sol)}")
+
+# --- Point d Entrée Principal ---
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Chercheur d anagrammes.",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument(
+        '--test', 
+        action='store_true',
+        help='Lance le mode de test non-interactif.'
+    )
+    parser.add_argument(
+        '--expression',
+        type=str,
+        help='(Mode test) L expression pour laquelle chercher les anagrammes.'
+    )
+    parser.add_argument(
+        '--expected',
+        type=str,
+        help='(Mode test) L anagramme attendue (mots séparés par des espaces).'
+    )
+    parser.add_argument(
+        '--tolerance',
+        type=int,
+        help='(Mode test) La tolérance pour la recherche.'
+    )
+
+    args = parser.parse_args()
+
+    # Le dictionnaire est chargé dans tous les cas
+    dictionnaire_trie = charger_dictionnaire_trie(DICTIONARY_PATH, CANONICAL_DICT_CACHE_PATH)
+
+    if args.test:
+        run_test(args, dictionnaire_trie)
+    else:
+        run_interactive_mode(dictionnaire_trie)
