@@ -1,4 +1,4 @@
-# Anagrammes : Un Chercheur d'Anagrammes Puissant
+# Anagrammes : Un chercheur d'anagrammes rapide et malin
 
 Ce script est un programme en ligne de commande (CLI) écrit en Python pour trouver toutes les anagrammes possibles d'une expression donnée. Il est conçu pour être à la fois rapide et flexible, en utilisant des structures de données avancées et en offrant plusieurs options à l'utilisateur.
 
